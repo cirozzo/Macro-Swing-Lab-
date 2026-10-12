@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Scarica repository
+      - name: Scarica il repository
         uses: actions/checkout@v4
 
       - name: Configura Python
@@ -26,17 +26,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install 'pandas>=2.1,<3' 'numpy>=1.26,<3' 'yfinance>=0.2.50,<2'
 
-      - name: Esegui backtest
+      - name: Esegui ricerca
         run: python backtest_macro.py
 
-      - name: Salva risultati
+      - name: Pubblica risultati
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
 
-          git add output/osservazioni.csv output/risultati.csv
+          git add output/osservazioni.csv output/risultati.csv output/strategie.csv output/confronto_strategie.csv
 
           if ! git diff --cached --quiet; then
-            git commit -m 'Aggiorna risultati Macro Swing Lab'
+            git commit -m 'Aggiorna ricerca Macro Swing Lab 3.0'
             git push
           fi
