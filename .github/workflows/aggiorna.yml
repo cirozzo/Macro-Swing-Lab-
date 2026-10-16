@@ -15,9 +15,10 @@ concurrency:
 jobs:
   aggiorna:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
+
       - name: Scarica il repository
         uses: actions/checkout@v4
 
@@ -40,23 +41,57 @@ jobs:
             'numpy>=1.26,<3' \
             'yfinance>=0.2.50,<2'
 
+      # =========================================
+      # MACRO SWING LAB 3.0
+      # =========================================
+
       - name: Esegui il backtest Macro Swing Lab 3.0
         run: |
           python backtest_macro.py
+
+      # =========================================
+      # MACRO SWING LAB 3.1
+      # =========================================
 
       - name: Esegui la validazione statistica 3.1
         run: |
           python valida_strategie.py
 
+      # =========================================
+      # MACRO SWING LAB 4.0
+      # =========================================
+
+      - name: Esegui Macro Swing Lab 4.0
+        run: |
+          python macro_swing_40.py
+
+      # =========================================
+      # VERIFICA RISULTATI
+      # =========================================
+
       - name: Verifica i file generati
         run: |
+          echo "Verifica Macro Swing Lab 3.0..."
           test -s output/osservazioni.csv
           test -s output/risultati.csv
           test -s output/strategie.csv
           test -s output/confronto_strategie.csv
+
+          echo "Verifica Macro Swing Lab 3.1..."
           test -s output/validazione_31.csv
 
-          echo "Tutti i file sono stati generati correttamente."
+          echo "Verifica Macro Swing Lab 4.0..."
+          test -s output/osservazioni_40.csv
+          test -s output/regimi_asset_40.csv
+          test -s output/scelte_modelli_40.csv
+          test -s output/confronto_modelli_40.csv
+          test -s output/watchlist_40.csv
+
+          echo "Tutti i file sono stati generati."
+
+      # =========================================
+      # PUBBLICAZIONE
+      # =========================================
 
       - name: Pubblica i risultati sul repository
         run: |
@@ -68,10 +103,15 @@ jobs:
             output/risultati.csv \
             output/strategie.csv \
             output/confronto_strategie.csv \
-            output/validazione_31.csv
+            output/validazione_31.csv \
+            output/osservazioni_40.csv \
+            output/regimi_asset_40.csv \
+            output/scelte_modelli_40.csv \
+            output/confronto_modelli_40.csv \
+            output/watchlist_40.csv
 
           if ! git diff --cached --quiet; then
-            git commit -m "Aggiorna Macro Swing Lab 3.1"
+            git commit -m "Aggiorna Macro Swing Lab 4.0"
             git push
           else
             echo "Nessuna modifica ai risultati."
