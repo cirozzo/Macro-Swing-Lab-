@@ -30,9 +30,6 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Verifica Python
-        run: python --version
-
       - name: Installa le librerie
         run: |
           python -m pip install --upgrade pip
@@ -46,105 +43,108 @@ jobs:
           fi
 
       # ==========================================
-      # MACRO SWING LAB 3.0
+      # VERSIONE 3.0
       # ==========================================
 
-      - name: Esegui il backtest Macro Swing Lab 3.0
+      - name: Backtest Macro Swing Lab 3.0
+        run: python backtest_macro.py
+
+      # ==========================================
+      # VERSIONE 3.1
+      # ==========================================
+
+      - name: Validazione statistica 3.1
+        run: python valida_strategie.py
+
+      # ==========================================
+      # VERSIONE 4.0
+      # ==========================================
+
+      - name: Ricerca multi-asset 4.0
+        run: python macro_swing_40.py
+
+      # ==========================================
+      # VERSIONE 4.1
+      # ==========================================
+
+      - name: Validazione statistica 4.1
+        run: python valida_41.py
+
+      # ==========================================
+      # VERSIONE 4.2
+      # ==========================================
+
+      - name: Analisi regimi Momentum 4.2
+        run: python analisi_regimi_42.py
+
+      # ==========================================
+      # VERSIONE 4.3
+      # ==========================================
+
+      - name: Robustezza Momentum 4.3
+        run: python validazione_43.py
+
+      # ==========================================
+      # VERSIONE 4.4
+      # ==========================================
+
+      - name: Simulazione portafoglio 4.4
+        run: python portafoglio_44.py
+
+      # ==========================================
+      # VERIFICA FILE
+      # ==========================================
+
+      - name: Verifica tutti i risultati
         run: |
-          python backtest_macro.py
+          echo "VERIFICA MACRO SWING LAB 4.4"
 
-      # ==========================================
-      # VALIDAZIONE STATISTICA 3.1
-      # ==========================================
-
-      - name: Esegui la validazione statistica 3.1
-        run: |
-          python valida_strategie.py
-
-      # ==========================================
-      # MACRO SWING LAB 4.0
-      # ==========================================
-
-      - name: Esegui Macro Swing Lab 4.0
-        run: |
-          python macro_swing_40.py
-
-      # ==========================================
-      # VALIDAZIONE STATISTICA 4.1
-      # ==========================================
-
-      - name: Esegui la validazione statistica 4.1
-        run: |
-          python valida_41.py
-
-      # ==========================================
-      # ANALISI REGIMI MOMENTUM 4.2
-      # ==========================================
-
-      - name: Analizza Momentum per regime macro 4.2
-        run: |
-          python analisi_regimi_42.py
-
-      # ==========================================
-      # VALIDAZIONE ROBUSTEZZA MOMENTUM 4.3
-      # ==========================================
-
-      - name: Valida robustezza Momentum 4.3
-        run: |
-          python validazione_43.py
-
-      # ==========================================
-      # VERIFICA FILE GENERATI
-      # ==========================================
-
-      - name: Verifica i file generati
-        run: |
-          echo "=================================="
-          echo "VERIFICA MACRO SWING LAB 4.3"
-          echo "=================================="
-
-          echo "Verifica versione 3.0"
+          echo "Versione 3.0"
           test -s output/osservazioni.csv
           test -s output/risultati.csv
           test -s output/strategie.csv
           test -s output/confronto_strategie.csv
 
-          echo "Verifica versione 3.1"
+          echo "Versione 3.1"
           test -s output/validazione_31.csv
 
-          echo "Verifica versione 4.0"
+          echo "Versione 4.0"
           test -s output/osservazioni_40.csv
           test -s output/regimi_asset_40.csv
           test -s output/scelte_modelli_40.csv
           test -s output/confronto_modelli_40.csv
           test -s output/watchlist_40.csv
 
-          echo "Verifica versione 4.1"
+          echo "Versione 4.1"
           test -s output/validazione_41.csv
           test -s output/validazione_41_annuale.csv
           test -s output/validazione_41_non_overlap.csv
           test -s output/validazione_41_differenze.csv
 
-          echo "Verifica versione 4.2"
+          echo "Versione 4.2"
           test -s output/regimi_momentum_42.csv
           test -s output/regimi_momentum_annuale_42.csv
           test -s output/regimi_momentum_osservazioni_42.csv
 
-          echo "Verifica versione 4.3"
+          echo "Versione 4.3"
           test -s output/robustezza_43.csv
           test -s output/robustezza_regimi_43.csv
           test -s output/robustezza_annuale_43.csv
           test -s output/robustezza_non_overlap_43.csv
 
-          echo "=================================="
+          echo "Versione 4.4"
+          test -s output/equity_44.csv
+          test -s output/operazioni_44.csv
+          test -s output/confronto_portafoglio_44.csv
+          test -s output/portafoglio_annuale_44.csv
+
           echo "TUTTI I FILE SONO PRESENTI"
-          echo "=================================="
 
       # ==========================================
-      # PUBBLICAZIONE RISULTATI
+      # PUBBLICAZIONE AUTOMATICA
       # ==========================================
 
-      - name: Pubblica i risultati sul repository
+      - name: Pubblica i risultati
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -170,27 +170,32 @@ jobs:
             output/robustezza_43.csv \
             output/robustezza_regimi_43.csv \
             output/robustezza_annuale_43.csv \
-            output/robustezza_non_overlap_43.csv
+            output/robustezza_non_overlap_43.csv \
+            output/equity_44.csv \
+            output/operazioni_44.csv \
+            output/confronto_portafoglio_44.csv \
+            output/portafoglio_annuale_44.csv
 
           if ! git diff --cached --quiet; then
-            git commit -m "Aggiorna Macro Swing Lab 4.3"
+            git commit -m "Aggiorna Macro Swing Lab 4.4"
             git push
           else
             echo "Nessuna modifica ai risultati."
           fi
 
       # ==========================================
-      # CONFERMA COMPLETAMENTO
+      # CONFERMA
       # ==========================================
 
       - name: Conferma completamento
         run: |
           echo "=================================="
-          echo "MACRO SWING LAB 4.3 COMPLETATO"
+          echo "MACRO SWING LAB 4.4 COMPLETATO"
           echo "=================================="
           echo "Backtest 3.0: OK"
           echo "Validazione 3.1: OK"
           echo "Ricerca multi-asset 4.0: OK"
           echo "Validazione 4.1: OK"
-          echo "Analisi regimi Momentum 4.2: OK"
-          echo "Robustezza Momentum 4.3: OK"
+          echo "Analisi regimi 4.2: OK"
+          echo "Robustezza 4.3: OK"
+          echo "Simulazione portafoglio 4.4: OK"
