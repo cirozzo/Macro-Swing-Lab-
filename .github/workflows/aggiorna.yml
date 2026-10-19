@@ -18,6 +18,10 @@ jobs:
     timeout-minutes: 30
 
     steps:
+      # ==========================================
+      # PREPARAZIONE
+      # ==========================================
+
       - name: Scarica il repository
         uses: actions/checkout@v4
 
@@ -41,34 +45,62 @@ jobs:
             python -m pip install -r requirements.txt
           fi
 
+      # ==========================================
+      # MACRO SWING LAB 3.0
+      # ==========================================
+
       - name: Esegui il backtest Macro Swing Lab 3.0
         run: |
           python backtest_macro.py
+
+      # ==========================================
+      # VALIDAZIONE STATISTICA 3.1
+      # ==========================================
 
       - name: Esegui la validazione statistica 3.1
         run: |
           python valida_strategie.py
 
+      # ==========================================
+      # MACRO SWING LAB 4.0
+      # ==========================================
+
       - name: Esegui Macro Swing Lab 4.0
         run: |
           python macro_swing_40.py
+
+      # ==========================================
+      # VALIDAZIONE STATISTICA 4.1
+      # ==========================================
 
       - name: Esegui la validazione statistica 4.1
         run: |
           python valida_41.py
 
+      # ==========================================
+      # ANALISI REGIMI MOMENTUM 4.2
+      # ==========================================
+
       - name: Analizza Momentum per regime macro 4.2
         run: |
           python analisi_regimi_42.py
+
+      # ==========================================
+      # VALIDAZIONE ROBUSTEZZA MOMENTUM 4.3
+      # ==========================================
 
       - name: Valida robustezza Momentum 4.3
         run: |
           python validazione_43.py
 
+      # ==========================================
+      # VERIFICA FILE GENERATI
+      # ==========================================
+
       - name: Verifica i file generati
         run: |
           echo "=================================="
-          echo "VERIFICA MACRO SWING LAB"
+          echo "VERIFICA MACRO SWING LAB 4.3"
           echo "=================================="
 
           echo "Verifica versione 3.0"
@@ -108,6 +140,10 @@ jobs:
           echo "TUTTI I FILE SONO PRESENTI"
           echo "=================================="
 
+      # ==========================================
+      # PUBBLICAZIONE RISULTATI
+      # ==========================================
+
       - name: Pubblica i risultati sul repository
         run: |
           git config user.name "github-actions[bot]"
@@ -142,6 +178,10 @@ jobs:
           else
             echo "Nessuna modifica ai risultati."
           fi
+
+      # ==========================================
+      # CONFERMA COMPLETAMENTO
+      # ==========================================
 
       - name: Conferma completamento
         run: |
