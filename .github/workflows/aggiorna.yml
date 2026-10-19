@@ -18,6 +18,10 @@ jobs:
     timeout-minutes: 30
 
     steps:
+      # ==========================================
+      # PREPARAZIONE
+      # ==========================================
+
       - name: Scarica il repository
         uses: actions/checkout@v4
 
@@ -38,38 +42,69 @@ jobs:
             python -m pip install -r requirements.txt
           fi
 
+      # ==========================================
       # VERSIONE 3.0
+      # ==========================================
+
       - name: Backtest Macro Swing Lab 3.0
         run: python backtest_macro.py
 
+      # ==========================================
       # VERSIONE 3.1
+      # ==========================================
+
       - name: Validazione statistica 3.1
         run: python valida_strategie.py
 
+      # ==========================================
       # VERSIONE 4.0
+      # ==========================================
+
       - name: Ricerca multi-asset 4.0
         run: python macro_swing_40.py
 
+      # ==========================================
       # VERSIONE 4.1
+      # ==========================================
+
       - name: Validazione statistica 4.1
         run: python valida_41.py
 
+      # ==========================================
       # VERSIONE 4.2
+      # ==========================================
+
       - name: Analisi regimi Momentum 4.2
         run: python analisi_regimi_42.py
 
+      # ==========================================
       # VERSIONE 4.3
+      # ==========================================
+
       - name: Robustezza Momentum 4.3
         run: python validazione_43.py
 
+      # ==========================================
       # VERSIONE 4.4
+      # ==========================================
+
       - name: Simulazione portafoglio 4.4
         run: python portafoglio_44.py
 
+      # ==========================================
+      # VERSIONE 4.5
+      # ==========================================
+
+      - name: Analisi storica asset per regime 4.5
+        run: python analisi_asset_45.py
+
+      # ==========================================
       # VERIFICA RISULTATI
+      # ==========================================
+
       - name: Verifica tutti i risultati
         run: |
-          echo "Verifica Macro Swing Lab 4.4"
+          echo "Verifica Macro Swing Lab 4.5"
 
           for file in \
             output/osservazioni.csv \
@@ -96,7 +131,12 @@ jobs:
             output/equity_44.csv \
             output/operazioni_44.csv \
             output/confronto_portafoglio_44.csv \
-            output/portafoglio_annuale_44.csv
+            output/portafoglio_annuale_44.csv \
+            output/asset_regimi_45.csv \
+            output/episodi_indipendenti_45.csv \
+            output/stabilita_annuale_45.csv \
+            output/confronto_periodi_45.csv \
+            output/watchlist_storica_45.csv
           do
             if [ ! -s "$file" ]; then
               echo "ERRORE: file mancante o vuoto: $file"
@@ -106,7 +146,10 @@ jobs:
 
           echo "Tutti i risultati sono presenti."
 
-      # PUBBLICAZIONE
+      # ==========================================
+      # PUBBLICAZIONE AUTOMATICA
+      # ==========================================
+
       - name: Pubblica i risultati
         run: |
           git config user.name "github-actions[bot]"
@@ -115,18 +158,27 @@ jobs:
           git add output/*.csv
 
           if ! git diff --cached --quiet; then
-            git commit -m "Aggiorna Macro Swing Lab 4.4"
+            git commit -m "Aggiorna Macro Swing Lab 4.5"
             git push
           else
             echo "Nessuna modifica ai risultati."
           fi
 
-      # CONFERMA
+      # ==========================================
+      # CONFERMA COMPLETAMENTO
+      # ==========================================
+
       - name: Conferma completamento
         run: |
           echo "=================================="
-          echo "MACRO SWING LAB 4.4 COMPLETATO"
+          echo "MACRO SWING LAB 4.5 COMPLETATO"
           echo "=================================="
-          echo "Tutte le analisi sono state eseguite."
-          echo "Tutti i risultati sono stati verificati."
+          echo "Backtest 3.0: OK"
+          echo "Validazione 3.1: OK"
+          echo "Ricerca multi-asset 4.0: OK"
+          echo "Validazione 4.1: OK"
+          echo "Analisi regimi 4.2: OK"
+          echo "Robustezza 4.3: OK"
+          echo "Simulazione portafoglio 4.4: OK"
+          echo "Analisi storica asset 4.5: OK"
           echo "=================================="
