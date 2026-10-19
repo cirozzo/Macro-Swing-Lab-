@@ -18,10 +18,6 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      # ==========================================
-      # PREPARAZIONE
-      # ==========================================
-
       - name: Scarica il repository
         uses: actions/checkout@v4
 
@@ -42,114 +38,40 @@ jobs:
             python -m pip install -r requirements.txt
           fi
 
-      # ==========================================
       # VERSIONE 3.0
-      # ==========================================
-
       - name: Backtest Macro Swing Lab 3.0
         run: python backtest_macro.py
 
-      # ==========================================
       # VERSIONE 3.1
-      # ==========================================
-
       - name: Validazione statistica 3.1
         run: python valida_strategie.py
 
-      # ==========================================
       # VERSIONE 4.0
-      # ==========================================
-
       - name: Ricerca multi-asset 4.0
         run: python macro_swing_40.py
 
-      # ==========================================
       # VERSIONE 4.1
-      # ==========================================
-
       - name: Validazione statistica 4.1
         run: python valida_41.py
 
-      # ==========================================
       # VERSIONE 4.2
-      # ==========================================
-
       - name: Analisi regimi Momentum 4.2
         run: python analisi_regimi_42.py
 
-      # ==========================================
       # VERSIONE 4.3
-      # ==========================================
-
       - name: Robustezza Momentum 4.3
         run: python validazione_43.py
 
-      # ==========================================
       # VERSIONE 4.4
-      # ==========================================
-
       - name: Simulazione portafoglio 4.4
         run: python portafoglio_44.py
 
-      # ==========================================
-      # VERIFICA FILE
-      # ==========================================
-
+      # VERIFICA RISULTATI
       - name: Verifica tutti i risultati
         run: |
-          echo "VERIFICA MACRO SWING LAB 4.4"
+          echo "Verifica Macro Swing Lab 4.4"
 
-          echo "Versione 3.0"
-          test -s output/osservazioni.csv
-          test -s output/risultati.csv
-          test -s output/strategie.csv
-          test -s output/confronto_strategie.csv
-
-          echo "Versione 3.1"
-          test -s output/validazione_31.csv
-
-          echo "Versione 4.0"
-          test -s output/osservazioni_40.csv
-          test -s output/regimi_asset_40.csv
-          test -s output/scelte_modelli_40.csv
-          test -s output/confronto_modelli_40.csv
-          test -s output/watchlist_40.csv
-
-          echo "Versione 4.1"
-          test -s output/validazione_41.csv
-          test -s output/validazione_41_annuale.csv
-          test -s output/validazione_41_non_overlap.csv
-          test -s output/validazione_41_differenze.csv
-
-          echo "Versione 4.2"
-          test -s output/regimi_momentum_42.csv
-          test -s output/regimi_momentum_annuale_42.csv
-          test -s output/regimi_momentum_osservazioni_42.csv
-
-          echo "Versione 4.3"
-          test -s output/robustezza_43.csv
-          test -s output/robustezza_regimi_43.csv
-          test -s output/robustezza_annuale_43.csv
-          test -s output/robustezza_non_overlap_43.csv
-
-          echo "Versione 4.4"
-          test -s output/equity_44.csv
-          test -s output/operazioni_44.csv
-          test -s output/confronto_portafoglio_44.csv
-          test -s output/portafoglio_annuale_44.csv
-
-          echo "TUTTI I FILE SONO PRESENTI"
-
-      # ==========================================
-      # PUBBLICAZIONE AUTOMATICA
-      # ==========================================
-
-      - name: Pubblica i risultati
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          git add \
+          for file in \
             output/osservazioni.csv \
             output/risultati.csv \
             output/strategie.csv \
@@ -175,6 +97,22 @@ jobs:
             output/operazioni_44.csv \
             output/confronto_portafoglio_44.csv \
             output/portafoglio_annuale_44.csv
+          do
+            if [ ! -s "$file" ]; then
+              echo "ERRORE: file mancante o vuoto: $file"
+              exit 1
+            fi
+          done
+
+          echo "Tutti i risultati sono presenti."
+
+      # PUBBLICAZIONE
+      - name: Pubblica i risultati
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add output/*.csv
 
           if ! git diff --cached --quiet; then
             git commit -m "Aggiorna Macro Swing Lab 4.4"
@@ -183,19 +121,12 @@ jobs:
             echo "Nessuna modifica ai risultati."
           fi
 
-      # ==========================================
       # CONFERMA
-      # ==========================================
-
       - name: Conferma completamento
         run: |
           echo "=================================="
           echo "MACRO SWING LAB 4.4 COMPLETATO"
           echo "=================================="
-          echo "Backtest 3.0: OK"
-          echo "Validazione 3.1: OK"
-          echo "Ricerca multi-asset 4.0: OK"
-          echo "Validazione 4.1: OK"
-          echo "Analisi regimi 4.2: OK"
-          echo "Robustezza 4.3: OK"
-          echo "Simulazione portafoglio 4.4: OK"
+          echo "Tutte le analisi sono state eseguite."
+          echo "Tutti i risultati sono stati verificati."
+          echo "=================================="
