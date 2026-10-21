@@ -15,14 +15,8 @@ concurrency:
 jobs:
   aggiorna:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-
+    timeout-minutes: 60
     steps:
-
-      # ==========================================
-      # PREPARAZIONE
-      # ==========================================
-
       - name: Scarica il repository
         uses: actions/checkout@v4
 
@@ -34,89 +28,43 @@ jobs:
       - name: Installa le librerie
         run: |
           python -m pip install --upgrade pip
-
-          python -m pip install \
-            'pandas>=2.1,<3' \
-            'numpy>=1.26,<3' \
-            'yfinance>=0.2.50,<2'
-
+          python -m pip install 'pandas>=2.1,<3' 'numpy>=1.26,<3' 'yfinance>=0.2.50,<2'
           if [ -f requirements.txt ]; then
             python -m pip install -r requirements.txt
           fi
 
-      # ==========================================
-      # VERSIONE 3.0
-      # ==========================================
-
       - name: Backtest Macro Swing Lab 3.0
         run: python backtest_macro.py
-
-      # ==========================================
-      # VERSIONE 3.1
-      # ==========================================
 
       - name: Validazione statistica 3.1
         run: python valida_strategie.py
 
-      # ==========================================
-      # VERSIONE 4.0
-      # ==========================================
-
       - name: Ricerca multi-asset 4.0
         run: python macro_swing_40.py
-
-      # ==========================================
-      # VERSIONE 4.1
-      # ==========================================
 
       - name: Validazione statistica 4.1
         run: python valida_41.py
 
-      # ==========================================
-      # VERSIONE 4.2
-      # ==========================================
-
       - name: Analisi regimi Momentum 4.2
         run: python analisi_regimi_42.py
-
-      # ==========================================
-      # VERSIONE 4.3
-      # ==========================================
 
       - name: Robustezza Momentum 4.3
         run: python validazione_43.py
 
-      # ==========================================
-      # VERSIONE 4.4
-      # ==========================================
-
       - name: Simulazione portafoglio 4.4
         run: python portafoglio_44.py
-
-      # ==========================================
-      # VERSIONE 4.5
-      # ==========================================
 
       - name: Analisi storica asset per regime 4.5
         run: python analisi_asset_45.py
 
-      # ==========================================
-      # VERSIONE 4.6
-      # ==========================================
-
       - name: Analisi swing settimanali 4.6
         run: python analisi_settimanale_46.py
 
-      # ==========================================
-      # VERIFICA RISULTATI
-      # ==========================================
+      - name: Ranking normalizzato per volatilita 4.7
+        run: python ranking_volatilita_47.py
 
       - name: Verifica tutti i risultati
         run: |
-          echo "=================================="
-          echo "VERIFICA MACRO SWING LAB 4.6"
-          echo "=================================="
-
           for file in \
             output/osservazioni.csv \
             output/risultati.csv \
@@ -152,56 +100,31 @@ jobs:
             output/episodi_non_overlap_46.csv \
             output/statistiche_settimanali_46.csv \
             output/confronto_baseline_46.csv \
-            output/stabilita_annuale_46.csv
+            output/stabilita_annuale_46.csv \
+            output/osservazioni_volatilita_47.csv \
+            output/episodi_non_overlap_47.csv \
+            output/statistiche_regimi_47.csv \
+            output/stabilita_annuale_47.csv \
+            output/ranking_ricerca_47.csv
           do
-
             if [ ! -s "$file" ]; then
               echo "ERRORE: file mancante o vuoto: $file"
               exit 1
             fi
-
             echo "OK: $file"
-
           done
-
-          echo "=================================="
-          echo "TUTTI I FILE SONO PRESENTI"
-          echo "=================================="
-
-      # ==========================================
-      # PUBBLICAZIONE AUTOMATICA
-      # ==========================================
 
       - name: Pubblica i risultati
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
           git add output/*.csv
-
           if ! git diff --cached --quiet; then
-            git commit -m "Aggiorna Macro Swing Lab 4.6"
+            git commit -m "Aggiorna Macro Swing Lab 4.7"
             git push
           else
             echo "Nessuna modifica ai risultati."
           fi
 
-      # ==========================================
-      # CONFERMA COMPLETAMENTO
-      # ==========================================
-
       - name: Conferma completamento
-        run: |
-          echo "=================================="
-          echo "MACRO SWING LAB 4.6 COMPLETATO"
-          echo "=================================="
-          echo "Backtest 3.0: OK"
-          echo "Validazione 3.1: OK"
-          echo "Ricerca multi-asset 4.0: OK"
-          echo "Validazione 4.1: OK"
-          echo "Analisi regimi 4.2: OK"
-          echo "Robustezza 4.3: OK"
-          echo "Simulazione portafoglio 4.4: OK"
-          echo "Analisi storica asset 4.5: OK"
-          echo "Analisi swing settimanali 4.6: OK"
-          echo "=================================="
+        run: echo "Macro Swing Lab 4.7 completato (NON point-in-time)"
