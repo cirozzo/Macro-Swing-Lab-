@@ -1,9 +1,7 @@
-name: Aggiorna Macro Swing Lab
+name: Macro Swing Lab 4.7 - Ricerca Offline
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '25 7 * * 1-5'
 
 permissions:
   contents: write
@@ -13,159 +11,228 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  aggiorna:
+
+  ricerca:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+
+    timeout-minutes: 45
 
     steps:
-      # ==========================================
-      # PREPARAZIONE
-      # ==========================================
 
-      - name: Scarica il repository
+      # =====================================
+      # 1. PREPARAZIONE
+      # =====================================
+
+      - name: Scarica repository
         uses: actions/checkout@v4
 
       - name: Configura Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
-      - name: Installa le librerie
+      - name: Installa librerie
         run: |
           python -m pip install --upgrade pip
-          python -m pip install 'pandas>=2.1,<3' 'numpy>=1.26,<3' 'yfinance>=0.2.50,<2'
+
+          python -m pip install \
+            "pandas>=2.1,<3" \
+            "numpy>=1.26,<3" \
+            "yfinance>=0.2.50,<2"
 
           if [ -f requirements.txt ]; then
             python -m pip install -r requirements.txt
           fi
 
-      # ==========================================
-      # VERSIONI PRECEDENTI
-      # ==========================================
+      # =====================================
+      # 2. VERIFICA DATI STORICI
+      # =====================================
 
-      - name: Backtest Macro Swing Lab 3.0
-        run: python backtest_macro.py
-
-      - name: Validazione statistica 3.1
-        run: python valida_strategie.py
-
-      - name: Ricerca multi-asset 4.0
-        run: python macro_swing_40.py
-
-      - name: Validazione statistica 4.1
-        run: python valida_41.py
-
-      - name: Analisi regimi Momentum 4.2
-        run: python analisi_regimi_42.py
-
-      - name: Robustezza Momentum 4.3
-        run: python validazione_43.py
-
-      - name: Simulazione portafoglio 4.4
-        run: python portafoglio_44.py
-
-      - name: Analisi storica asset per regime 4.5
-        run: python analisi_asset_45.py
-
-      - name: Analisi swing settimanali 4.6
-        run: python analisi_settimanale_46.py
-
-      # ==========================================
-      # NUOVA VERSIONE 4.7
-      # ==========================================
-
-      - name: Ranking normalizzato per volatilita 4.7
-        run: python ranking_volatilita_47.py
-
-      # ==========================================
-      # VERIFICA RISULTATI
-      # ==========================================
-
-      - name: Verifica tutti i risultati
+      - name: Controlla dataset 4.6
         run: |
-          echo "VERIFICA MACRO SWING LAB 4.7"
+          python - <<'PY'
+          from pathlib import Path
+          import pandas as pd
+
+          path = Path("output/osservazioni_46.csv")
+
+          if not path.exists():
+              raise FileNotFoundError(
+                  "Manca output/osservazioni_46.csv"
+              )
+
+          df = pd.read_csv(
+              path,
+              usecols=[
+                  "data_segnale",
+                  "asset",
+                  "regime",
+                  "settimane"
+              ]
+          )
+
+          if df.empty:
+              raise RuntimeError(
+                  "Dataset storico 4.6 vuoto"
+              )
+
+          dates = pd.to_datetime(
+              df["data_segnale"]
+          )
+
+          print("================================")
+          print("DATASET STORICO 4.6")
+          print("================================")
+
+          print("Osservazioni:", len(df))
+          print("Asset:", df["asset"].nunique())
+          print("Regimi:", df["regime"].nunique())
+          print("Orizzonti:", df["settimane"].nunique())
+          print("Prima osservazione:", dates.min())
+          print("Ultima osservazione:", dates.max())
+
+          print("================================")
+          print("ATTENZIONE:")
+          print("Regimi macro NON point-in-time")
+          print("Dataset storico non aggiornato")
+          print("durante questa esecuzione")
+          print("================================")
+          PY
+
+      # =====================================
+      # 3. ESECUZIONE VERSIONE 4.7
+      # =====================================
+
+      - name: Ranking volatilita 4.7
+        run: |
+          python ranking_volatilita_47.py
+
+      # =====================================
+      # 4. VERIFICA FILE GENERATI
+      # =====================================
+
+      - name: Verifica risultati 4.7
+        run: |
+          echo "VERIFICA RISULTATI 4.7"
 
           for file in \
-            output/osservazioni.csv \
-            output/risultati.csv \
-            output/strategie.csv \
-            output/confronto_strategie.csv \
-            output/validazione_31.csv \
-            output/osservazioni_40.csv \
-            output/regimi_asset_40.csv \
-            output/scelte_modelli_40.csv \
-            output/confronto_modelli_40.csv \
-            output/watchlist_40.csv \
-            output/validazione_41.csv \
-            output/validazione_41_annuale.csv \
-            output/validazione_41_non_overlap.csv \
-            output/validazione_41_differenze.csv \
-            output/regimi_momentum_42.csv \
-            output/regimi_momentum_annuale_42.csv \
-            output/regimi_momentum_osservazioni_42.csv \
-            output/robustezza_43.csv \
-            output/robustezza_regimi_43.csv \
-            output/robustezza_annuale_43.csv \
-            output/robustezza_non_overlap_43.csv \
-            output/equity_44.csv \
-            output/operazioni_44.csv \
-            output/confronto_portafoglio_44.csv \
-            output/portafoglio_annuale_44.csv \
-            output/asset_regimi_45.csv \
-            output/episodi_indipendenti_45.csv \
-            output/stabilita_annuale_45.csv \
-            output/confronto_periodi_45.csv \
-            output/watchlist_storica_45.csv \
-            output/osservazioni_46.csv \
-            output/episodi_non_overlap_46.csv \
-            output/statistiche_settimanali_46.csv \
-            output/confronto_baseline_46.csv \
-            output/stabilita_annuale_46.csv \
             output/osservazioni_volatilita_47.csv \
             output/episodi_non_overlap_47.csv \
             output/statistiche_regimi_47.csv \
             output/stabilita_annuale_47.csv \
             output/ranking_ricerca_47.csv
           do
+
             if [ ! -s "$file" ]; then
-              echo "ERRORE: file mancante o vuoto: $file"
+              echo "ERRORE: $file mancante o vuoto"
               exit 1
             fi
 
             echo "OK: $file"
+
           done
 
-          echo "TUTTI I FILE SONO PRESENTI"
+      # =====================================
+      # 5. CONTROLLO STATISTICO
+      # =====================================
 
-      # ==========================================
-      # PUBBLICAZIONE AUTOMATICA
-      # ==========================================
+      - name: Controlla ranking
+        run: |
+          python - <<'PY'
+          import pandas as pd
 
-      - name: Pubblica i risultati
+          path = "output/ranking_ricerca_47.csv"
+
+          df = pd.read_csv(path)
+
+          required = [
+              "asset",
+              "regime",
+              "settimane",
+              "score_descrittivo",
+              "posizione_nel_regime"
+          ]
+
+          missing = [
+              c for c in required
+              if c not in df.columns
+          ]
+
+          if missing:
+              raise ValueError(
+                  f"Colonne mancanti: {missing}"
+              )
+
+          if df.empty:
+              raise RuntimeError(
+                  "Ranking vuoto"
+              )
+
+          keys = [
+              "asset",
+              "regime",
+              "settimane"
+          ]
+
+          if df.duplicated(keys).any():
+              raise RuntimeError(
+                  "Combinazioni duplicate"
+              )
+
+          print("================================")
+          print("RANKING 4.7")
+          print("================================")
+
+          print("Combinazioni:", len(df))
+          print("Asset:", df["asset"].nunique())
+          print("Regimi:", df["regime"].nunique())
+          print("Orizzonti:", df["settimane"].nunique())
+
+          print("================================")
+          print("DATI NON POINT-IN-TIME")
+          print("RANKING DESCRITTIVO")
+          print("================================")
+          PY
+
+      # =====================================
+      # 6. PUBBLICAZIONE
+      # =====================================
+
+      - name: Pubblica risultati
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add output/*.csv
 
           if ! git diff --cached --quiet; then
-            git commit -m "Aggiorna Macro Swing Lab 4.7"
+
+            git commit -m \
+              "Macro Swing Lab 4.7 ranking offline"
+
             git push
+
           else
-            echo "Nessuna modifica ai risultati."
+
+            echo "Nessuna modifica da pubblicare"
+
           fi
 
-      # ==========================================
-      # COMPLETAMENTO
-      # ==========================================
+      # =====================================
+      # 7. COMPLETAMENTO
+      # =====================================
 
       - name: Conferma completamento
         run: |
-          echo "======================================"
+          echo "================================"
           echo "MACRO SWING LAB 4.7 COMPLETATO"
-          echo "======================================"
-          echo "Ranking asset-regime-orizzonte: OK"
+          echo "================================"
+          echo "Ranking statistico: OK"
           echo "Normalizzazione volatilita: OK"
-          echo "Analisi stabilita annuale: OK"
           echo "Confronto baseline: OK"
-          echo "Dati macro NON point-in-time"
+          echo "Stabilita annuale: OK"
+          echo "================================"
+          echo "Modalita: OFFLINE MACRO"
+          echo "Ricerca NON point-in-time"
