@@ -1,0 +1,37 @@
+name: Macro Swing Lab 5.0 - Audit PIT
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit-pit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: python -m pip install pandas
+      - name: Download latest successful 4.9 artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          mkdir -p input
+          RUN_ID=$(gh run list --workflow regimi_pit_49.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          test -n "$RUN_ID" || { echo 'No successful 4.9 run found'; exit 1; }
+          gh run download "$RUN_ID" --name regimi-pit-49 --dir input
+          test -s input/regimi_pit_49.csv
+      - name: Validate PIT output
+        run: python validazione_pit_50.py --input input/regimi_pit_49.csv
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-pit-50
+          path: output/validazione_pit_50/
+          if-no-files-found: warn
