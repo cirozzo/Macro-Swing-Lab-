@@ -1,0 +1,49 @@
+name: Macro Swing Lab 5.1 - Audit ALFRED indipendente
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  audit-pit-51:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Dependencies
+        run: python -m pip install 'pandas>=2.2,<3' 'numpy>=1.26,<3'
+      - name: Download latest successful 4.9 artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          mkdir -p input
+          # Resolve by workflow name rather than guessing a run number.
+          workflow_id=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows" --jq '.workflows[] | select(.name == "Macro Swing Lab 4.9 - ALFRED PIT (isolato)") | .id' | head -1)
+          if [ -z "$workflow_id" ]; then
+            echo 'Cannot locate workflow 4.9 by name. Inspect Actions workflow title.' >&2
+            exit 1
+          fi
+          run_id=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow_id}/runs?status=success&per_page=30" --jq '.workflow_runs[] | select(.head_branch == "main") | .id' | head -1)
+          if [ -z "$run_id" ]; then echo 'No successful 4.9 run on main' >&2; exit 1; fi
+          gh run download "$run_id" --repo "$GITHUB_REPOSITORY" --name regimi-pit-49 --dir input
+          test -s input/regimi_pit_49.csv
+      - name: Independent PIT audit
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: python audit_pit_51.py --input input/regimi_pit_49.csv --sample-size 40
+      - name: Upload audit evidence (also on failure)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-pit-51
+          path: output/audit_pit_51/
+          if-no-files-found: warn
