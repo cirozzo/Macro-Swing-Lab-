@@ -1,0 +1,44 @@
+name: Macro Swing Lab 5.2 - ETF PIT per regime
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  etf-pit-52:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Dependencies
+        run: python -m pip install 'pandas>=2.2,<3' 'numpy>=1.26,<3' 'yfinance>=0.2.55,<2'
+      - name: Download latest successful 4.9 artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          mkdir -p input
+          workflow_id=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows" --jq '.workflows[] | select(.name == "Macro Swing Lab 4.9 - ALFRED PIT (isolato)") | .id' | head -1)
+          if [ -z "$workflow_id" ]; then echo 'Workflow 4.9 non trovato' >&2; exit 1; fi
+          run_id=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow_id}/runs?status=success&per_page=30" --jq '.workflow_runs[] | select(.head_branch == "main") | .id' | head -1)
+          if [ -z "$run_id" ]; then echo 'Esecuzione 4.9 riuscita non trovata' >&2; exit 1; fi
+          gh run download "$run_id" --repo "$GITHUB_REPOSITORY" --name regimi-pit-49 --dir input
+          test -s input/regimi_pit_49.csv
+      - name: Analyze ETF prices vs PIT regimes
+        run: python etf_regimi_pit_52.py --input input/regimi_pit_49.csv
+      - name: Upload outputs even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: etf-pit-52
+          path: output/etf_pit_52/
+          if-no-files-found: warn
+          retention-days: 30
