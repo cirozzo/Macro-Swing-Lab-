@@ -1,0 +1,45 @@
+name: Macro Swing Lab 5.3 - Validazione statistica ETF
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  validazione-etf-53:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Dependencies
+        run: python -m pip install 'pandas>=2.2,<3' 'numpy>=1.26,<3'
+      - name: Download latest successful 5.2 artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p input
+          workflow_id=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows" --jq '.workflows[] | select(.name == "Macro Swing Lab 5.2 - ETF PIT per regime") | .id' | head -1)
+          test -n "$workflow_id" || { echo 'Workflow 5.2 non trovato' >&2; exit 1; }
+          run_id=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow_id}/runs?status=success&per_page=30" --jq '.workflow_runs[] | select(.head_branch == "main") | .id' | head -1)
+          test -n "$run_id" || { echo 'Nessuna esecuzione 5.2 riuscita su main' >&2; exit 1; }
+          gh run download "$run_id" --repo "$GITHUB_REPOSITORY" --name etf-pit-52 --dir input
+          test -s input/osservazioni_pit_52.csv
+      - name: Validate 120 combinations
+        run: python validazione_etf_53.py --input input/osservazioni_pit_52.csv
+      - name: Upload audit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validazione-etf-53
+          path: output/validazione_etf_53/
+          if-no-files-found: warn
+          retention-days: 30
