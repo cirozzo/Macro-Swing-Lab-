@@ -1,0 +1,40 @@
+name: Macro Swing Lab 6.0 - Catalogo fonti e audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_fred_series:
+        description: 'Numero di serie FRED da verificare (0-37, a lotti per rate limit)'
+        required: false
+        default: '20'
+
+permissions:
+  contents: read
+
+jobs:
+  catalogo-60:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validazione locale senza API
+        run: python catalogo_fonti_60.py --offline --out output/test_catalogo_60
+      - name: Audit metadata FRED
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          MAX_SERIES: ${{ inputs.max_fred_series }}
+        run: |
+          python catalogo_fonti_60.py --limit "${MAX_SERIES:-20}" --out output/catalogo_60
+      - name: Upload report anche in caso di errore
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: catalogo-fonti-60
+          path: output/catalogo_60/
+          if-no-files-found: warn
+          retention-days: 30
