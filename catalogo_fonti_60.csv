@@ -1,0 +1,50 @@
+id,categoria,fonte,serie,frequenza_prevista,stato_ingestione,nota_pit
+PCE_CORE,Inflazione,FRED,PCEPILFE,mensile,attiva,Richiede vintage ALFRED e ora rilascio
+CPI,Inflazione,FRED,CPIAUCSL,mensile,attiva,Richiede vintage ALFRED e ora rilascio
+CPI_CORE,Inflazione,FRED,CPILFESL,mensile,attiva,Richiede vintage ALFRED e ora rilascio
+PCE,Inflazione,FRED,PCEPI,mensile,attiva,Richiede vintage ALFRED e ora rilascio
+PPI,Inflazione,FRED,PPIACO,mensile,attiva,Richiede vintage ALFRED e ora rilascio
+BREAKEVEN10,Inflazione attesa,FRED,T10YIE,quotidiana,attiva,Verificare disponibilita vintage e timestamp
+BREAKEVEN5,Inflazione attesa,FRED,T5YIE,quotidiana,attiva,Verificare disponibilita vintage e timestamp
+INDPRO,Crescita,FRED,INDPRO,mensile,attiva,Richiede vintage ALFRED e ora rilascio
+GDP,Crescita,FRED,GDP,trimestrale,attiva,Richiede vintage ALFRED e ora rilascio
+RETAIL,Crescita,FRED,RSXFS,mensile,attiva,Richiede vintage ALFRED e ora rilascio
+PAYROLL,Lavoro,FRED,PAYEMS,mensile,attiva,Richiede vintage ALFRED e ora rilascio
+UNRATE,Lavoro,FRED,UNRATE,mensile,attiva,Richiede vintage ALFRED e ora rilascio
+CLAIMS,Lavoro,FRED,ICSA,settimanale,attiva,Verificare data e ora pubblicazione
+JOLTS,Lavoro,FRED,JTSJOL,mensile,attiva,Richiede vintage ALFRED e ora rilascio
+FEDFUNDS,Monetaria,FRED,FEDFUNDS,mensile,attiva,Non e aspettativa FOMC
+SOFR,Monetaria,FRED,SOFR,quotidiana,attiva,Pubblicato dopo data di riferimento
+EFFR,Monetaria,FRED,DFEDTARU,quotidiana,attiva,Tasso obiettivo superiore e non attesa futura
+BALANCE_SHEET,Liquidita,FRED,WALCL,settimanale,attiva,Disponibilita dopo pubblicazione H4.1
+RESERVES,Liquidita,FRED,WRESBAL,settimanale,attiva,Verificare disponibilita ALFRED
+RRP,Liquidita,FRED,RRPONTSYD,quotidiana,attiva,Verificare pubblicazione
+TREASURY2Y,Obbligazioni,FRED,DGS2,quotidiana,attiva,Date mercato non equivalgono a timestamp rilascio
+TREASURY10Y,Obbligazioni,FRED,DGS10,quotidiana,attiva,Date mercato non equivalgono a timestamp rilascio
+TREASURY3M,Obbligazioni,FRED,DGS3MO,quotidiana,attiva,Date mercato non equivalgono a timestamp rilascio
+REAL10Y,Obbligazioni,FRED,DFII10,quotidiana,attiva,Date mercato non equivalgono a timestamp rilascio
+YIELD_CURVE,Obbligazioni,FRED,T10Y2Y,quotidiana,attiva,Verificare data di accessibilita
+HY_SPREAD,Credito,FRED,BAMLH0A0HYM2,quotidiana,attiva,Verificare disponibilita storica e licenza
+BAA10Y,Credito,FRED,BAA10Y,quotidiana,attiva,Verificare disponibilita vintage
+NFCI,Condizioni finanziarie,FRED,NFCI,settimanale,attiva,Rilascio successivo alla settimana misurata
+ANFCI,Condizioni finanziarie,FRED,ANFCI,settimanale,attiva,Rilascio successivo alla settimana misurata
+VIX,Volatilita,FRED,VIXCLS,quotidiana,attiva,Servono timestamp per decisioni intraday
+WTI,Commodities,FRED,DCOILWTICO,quotidiana,attiva,Disponibilita non necessariamente contemporanea
+GOLD,Commodities,FRED,GOLDAMGBD228NLBM,quotidiana,attiva,Serie da verificare per copertura e licenza
+DOLLAR,Valute,FRED,DTWEXBGS,quotidiana,attiva,Indice spesso pubblicato con ritardo
+M2,Monetaria,FRED,M2SL,mensile,attiva,Richiede vintage ALFRED e ora rilascio
+SENTIMENT,Sentiment,FRED,UMCSENT,mensile,attiva,Dati revisionabili e rilasci distinti
+EPU,Politica,FRED,USEPUINDXD,quotidiana,attiva,Accertare disponibilita storica pubblica in tempo reale
+FIN_STRESS,Condizioni finanziarie,FRED,STLFSI4,settimanale,attiva,Copertura storica potenzialmente limitata
+COT_FUTURES,Posizionamento,CFTC,,settimanale,in_attesa,Servono mapping contratti e data rilascio venerdi
+GEOPOLITICAL_EVENTS,Geopolitica,GDELT,,giornaliera,in_attesa,Da studiare copertura storica e disponibilita dei dati
+FOMC_CALENDAR,Politica monetaria,Federal Reserve,,eventi,in_attesa,Timestamp comunicati e revisioni
+ELECTION_EVENTS,Politica,Fonti ufficiali elettorali,,eventi,in_attesa,Definire variabili riproducibili pre-evento
+TARIFFS,Politica commerciale,Fonti ufficiali USA,,eventi,in_attesa,Rischio codifica retrospettiva dell evento
+ECONOMIC_SURPRISE,Sorprese macro,Consensus provider,,eventi,in_attesa,Previsioni pre-rilascio non sempre disponibili gratis
+ETF_FLOWS,Flussi,Provider ETF,,quotidiana,in_attesa,Storico e disponibilita reale da verificare
+OPTION_SKEW,Derivati,Provider opzioni,,quotidiana,in_attesa,Richiede fonte point-in-time
+OIL_INVENTORIES,Energia,EIA,,settimanale,in_attesa,Serve calendario effettivo di pubblicazione
+GLOBAL_PMI,Crescita globale,Provider PMI,,mensile,in_attesa,Licenza e vintage
+ECB_RATES,Monetaria globale,BCE,,eventi,in_attesa,Orari decisioni e comunicati
+NEWS_SENTIMENT,Notizie,GDELT,,giornaliera,in_attesa,Bias di copertura e timestamp
