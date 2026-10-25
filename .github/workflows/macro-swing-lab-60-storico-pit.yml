@@ -1,0 +1,49 @@
+name: Macro Swing Lab 6.0 - Storico ALFRED PIT (pilota)
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_series:
+        description: 'Serie da elaborare (0 = tutte le 36 disponibili)'
+        required: false
+        default: '12'
+      max_signals:
+        description: 'Venerdi campionati su 2007-oggi (0 = tutti; usare solo dopo pilota)'
+        required: false
+        default: '24'
+
+permissions:
+  contents: read
+
+jobs:
+  storico-pit-60:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Dependencies
+        run: python -m pip install 'pandas>=2.2,<3'
+      - name: Offline parsing test
+        run: python storico_pit_60.py --offline-test
+      - name: Acquire conservative ALFRED vintage snapshots
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          MAX_SERIES: ${{ inputs.max_series }}
+          MAX_SIGNALS: ${{ inputs.max_signals }}
+        run: |
+          python storico_pit_60.py --catalog catalogo_fonti_60.csv \
+            --max-series "${MAX_SERIES:-12}" --max-signals "${MAX_SIGNALS:-24}" \
+            --out output/storico_pit_60
+      - name: Upload audit and snapshots even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: storico-pit-60
+          path: output/storico_pit_60/
+          if-no-files-found: warn
+          retention-days: 30
