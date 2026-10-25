@@ -1,0 +1,43 @@
+name: Macro Swing Lab 5.4 - Valore predittivo regimi
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  valore-predittivo-54:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Dependencies
+        run: python -m pip install 'pandas>=2.2,<3' 'numpy>=1.26,<3'
+      - name: Download latest successful 5.2 artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p input
+          workflow_id=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows" --jq '.workflows[] | select(.name == "Macro Swing Lab 5.2 - ETF PIT per regime") | .id' | head -1)
+          test -n "$workflow_id" || { echo 'Workflow 5.2 non trovato' >&2; exit 1; }
+          run_id=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow_id}/runs?status=success&per_page=30" --jq '.workflow_runs[] | select(.head_branch == "main") | .id' | head -1)
+          test -n "$run_id" || { echo 'Nessuna esecuzione 5.2 riuscita su main' >&2; exit 1; }
+          gh run download "$run_id" --repo "$GITHUB_REPOSITORY" --name etf-pit-52 --dir input
+          test -s input/osservazioni_pit_52.csv
+      - name: Regime predictive-value diagnostics
+        run: python valore_predittivo_regimi_54.py --input input/osservazioni_pit_52.csv --permutations 999
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: valore-predittivo-54
+          path: output/valore_predittivo_54/
+          if-no-files-found: warn
+          retention-days: 30
