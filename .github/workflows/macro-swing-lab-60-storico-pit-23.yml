@@ -1,0 +1,82 @@
+name: Macro Swing Lab 6.0 - Storico ALFRED PIT fase 2.3 completo
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_series:
+        description: '0 = tutte le serie FRED disponibili; 12 = test rapido'
+        required: true
+        default: '0'
+        type: string
+      max_signals:
+        description: '0 = tutte le settimane per ciascuna partizione'
+        required: true
+        default: '0'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  acquire:
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - {part: '2007-2011', start: '2007-01-01', end: '2011-12-31'}
+          - {part: '2012-2016', start: '2012-01-01', end: '2016-12-31'}
+          - {part: '2017-2021', start: '2017-01-01', end: '2021-12-31'}
+          - {part: '2022-2026', start: '2022-01-01', end: '2026-10-23'}
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install 'pandas>=2.2,<3'
+      - run: python storico_pit_63.py --offline-test
+      - name: Acquire and independently audit PIT observations
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          MAX_SERIES: ${{ inputs.max_series }}
+          MAX_SIGNALS: ${{ inputs.max_signals }}
+          START: ${{ matrix.start }}
+          END: ${{ matrix.end }}
+        shell: bash
+        run: |
+          python storico_pit_63.py --catalog catalogo_fonti_60.csv \
+            --start "$START" --end "$END" \
+            --max-series "${MAX_SERIES:-0}" --max-signals "${MAX_SIGNALS:-0}" \
+            --batch-size 12 --pacing 1.5 --audit-samples 2 \
+            --derive-breakeven --out output/storico_pit_63
+      - name: Upload partition (also if failed)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pit-63-${{ matrix.part }}
+          path: output/storico_pit_63/
+          if-no-files-found: warn
+          retention-days: 30
+
+  merge:
+    needs: acquire
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install 'pandas>=2.2,<3'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: pit-63-*
+          path: partizioni
+      - name: Merge, validate and report
+        run: python unisci_pit_63.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: storico-pit-63-completo
+          path: output/storico_pit_63_completo/
+          retention-days: 30
