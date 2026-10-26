@@ -1,0 +1,58 @@
+name: Macro Swing Lab 6.0 - ALFRED PIT fase 2.2 diagnostica
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_series:
+        description: 'Serie FRED da interrogare (0 = tutte; cominciare da 12)'
+        required: false
+        default: '12'
+        type: string
+      max_signals:
+        description: 'Venerdi campionati (0 = tutti; cominciare da 24)'
+        required: false
+        default: '24'
+        type: string
+      derive_breakeven:
+        description: 'Tentare ricostruzione PIT da Treasury nominali e reali'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  pit-diagnostics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: python -m pip install 'pandas>=2.2,<3'
+      - name: Local tests
+        run: python storico_pit_62.py --offline-test
+      - name: Recover data and diagnose vintages
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          MAX_SERIES: ${{ inputs.max_series }}
+          MAX_SIGNALS: ${{ inputs.max_signals }}
+          DERIVE: ${{ inputs.derive_breakeven }}
+        shell: bash
+        run: |
+          args=()
+          if [[ "$DERIVE" == 'true' ]]; then args+=(--derive-breakeven); fi
+          python storico_pit_62.py --catalog catalogo_fonti_60.csv \
+            --max-series "${MAX_SERIES:-12}" --max-signals "${MAX_SIGNALS:-24}" \
+            --out output/storico_pit_62 "${args[@]}"
+      - name: Upload evidence also if partial failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: storico-pit-62
+          path: output/storico_pit_62/
+          if-no-files-found: warn
+          retention-days: 30
