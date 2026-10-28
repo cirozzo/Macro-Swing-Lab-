@@ -1,0 +1,32 @@
+name: Macro Swing Lab - Audit PIT integrato
+on:
+  workflow_dispatch:
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Ripristina cache FRED
+        uses: actions/cache@v4
+        with:
+          path: .cache_fred
+          key: pit-fred-${{ hashFiles('audit_pit_integrato.py') }}-${{ github.run_id }}
+          restore-keys: |
+            pit-fred-${{ hashFiles('audit_pit_integrato.py') }}-
+      - name: Verifica integrata
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: python audit_pit_integrato.py
+      - name: Carica report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macro-swing-lab-audit-pit-integrato
+          path: audit_pit_completo/
+          if-no-files-found: warn
