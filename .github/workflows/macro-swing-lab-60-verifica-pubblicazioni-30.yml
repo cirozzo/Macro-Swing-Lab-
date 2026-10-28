@@ -1,0 +1,26 @@
+name: Macro Swing Lab 6.0 - Fase 3.0 verifica pubblicazioni
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify required inputs
+        run: |
+          test -f storico-pit-64-completo.zip || { echo 'Missing storico-pit-64-completo.zip in repository root'; exit 1; }
+          test -f Macro_Swing_Lab_6_0_Fase_2_9_Registro_Fonti.zip || { echo 'Missing Phase 2.9 ZIP in repository root'; exit 1; }
+      - name: Run conservative point-in-time publication gate
+        run: |
+          python verifica_pubblicazioni_70.py --snapshot storico-pit-64-completo.zip --registro Macro_Swing_Lab_6_0_Fase_2_9_Registro_Fonti.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macro-swing-lab-fase-30-gate
+          path: output/verifica_pubblicazioni_70/
+          if-no-files-found: error
