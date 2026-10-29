@@ -1,0 +1,30 @@
+name: Macro Swing Lab - Certificazione PIT finale
+on:
+  workflow_dispatch:
+jobs:
+  certificazione:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v4
+        with:
+          path: .pit_finale_cache
+          key: alfred-final-${{ github.run_id }}
+          restore-keys: |
+            alfred-final-
+      - name: Verifica vintage e valori ALFRED
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: python certifica_pit_finale.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macro-swing-lab-certificazione-pit-finale
+          path: certificazione_pit_finale/
+          if-no-files-found: warn
