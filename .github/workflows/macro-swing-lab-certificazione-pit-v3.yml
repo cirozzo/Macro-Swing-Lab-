@@ -1,0 +1,84 @@
+name: Macro Swing Lab - Certificazione PIT v3 parallela
+on:
+  workflow_dispatch:
+    inputs:
+      serie:
+        description: "Serie da elaborare: ALL oppure un codice (es. GDP)"
+        required: false
+        default: ALL
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.build.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: build
+        env:
+          REQUESTED_SERIES: ${{ inputs.serie }}
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import os,json,pathlib,zipfile
+          required=['storico-pit-64-completo.zip','macro-swing-lab-associazione-pit.zip','certifica_pit_v3.py']
+          missing=[x for x in required if not pathlib.Path(x).is_file()]
+          if missing:raise SystemExit('File mancanti nella root: '+', '.join(missing))
+          for name in required[:2]:
+              if not zipfile.is_zipfile(name):raise SystemExit('ZIP non valido: '+name)
+          series=['ANFCI', 'BAA10Y', 'BAMLH0A0HYM2', 'CPIAUCSL', 'CPILFESL', 'DCOILWTICO', 'DFEDTARU', 'DFII10', 'DGS10', 'DGS2', 'DGS3MO', 'DTWEXBGS', 'FEDFUNDS', 'GDP', 'ICSA', 'INDPRO', 'JTSJOL', 'M2SL', 'NFCI', 'PAYEMS', 'PCEPI', 'PCEPILFE', 'PPIACO', 'RRPONTSYD', 'RSXFS', 'SOFR', 'STLFSI4', 'T10Y2Y', 'T10YIE', 'T5YIE', 'UMCSENT', 'UNRATE', 'USEPUINDXD', 'VIXCLS', 'WALCL', 'WRESBAL']
+          requested=os.environ.get('REQUESTED_SERIES','ALL').strip().upper() or 'ALL'
+          if requested!='ALL':
+              if requested not in series:raise SystemExit('Serie sconosciuta: '+requested)
+              series=[requested]
+          print('matrix='+json.dumps({'serie':series},separators=(',',':')))
+          PY
+  certifica:
+    needs: preflight
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix: ${{ fromJSON(needs.preflight.outputs.matrix) }}
+    timeout-minutes: 47
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verifica API key
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: |
+          test -n "$FRED_API_KEY" || { echo 'FRED_API_KEY non configurata'; exit 1; }
+      - name: Verifica serie ALFRED
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: python certifica_pit_v3.py --series "${{ matrix.serie }}" --budget-seconds 2100
+      - name: Salva report della serie
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pit-v3-${{ matrix.serie }}
+          path: risultati_certificazione_pit_v3/
+          if-no-files-found: warn
+          retention-days: 30
+  aggrega:
+    needs: [preflight,certifica]
+    if: always() && needs.preflight.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: pit-v3-*
+          path: input_serie
+          merge-multiple: false
+      - uses: actions/checkout@v4
+      - name: Unisci risultati
+        run: python aggrega_pit_v3.py --input input_serie --out report_pit_v3
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macro-swing-lab-certificazione-pit-v3-riepilogo
+          path: report_pit_v3/
+          if-no-files-found: warn
