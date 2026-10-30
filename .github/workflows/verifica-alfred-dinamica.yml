@@ -1,0 +1,43 @@
+name: Macro Swing Lab - Verifica ALFRED dinamica
+on:
+  workflow_dispatch:
+    inputs:
+      passo_settimane:
+        description: '4 = ricognizione ogni quattro settimane; 1 = tutte le settimane'
+        required: true
+        default: '4'
+      inizio_analisi:
+        description: 'Primo anno del backtest (la serie parte comunque dalla sua prima vintage successiva)'
+        required: true
+        default: '2006-01-01'
+permissions:
+  contents: read
+jobs:
+  controlla:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        serie: [ANFCI, BAA10Y, BAMLH0A0HYM2, CPIAUCSL, CPILFESL, DCOILWTICO, DFEDTARU, DFII10, DGS10, DGS2, DGS3MO, DTWEXBGS, FEDFUNDS, GDP, ICSA, INDPRO, JTSJOL, M2SL, NFCI, PAYEMS, PCEPI, PCEPILFE, PPIACO, RRPONTSYD, RSXFS, SOFR, STLFSI4, T10Y2Y, T10YIE, T5YIE, UMCSENT, UNRATE, USEPUINDXD, VIXCLS, WALCL, WRESBAL]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verifica da prima vintage per serie
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          STEP_WEEKS: ${{ inputs.passo_settimane }}
+          ANALYSIS_START: ${{ inputs.inizio_analisi }}
+          SERIES: ${{ matrix.serie }}
+        run: python verifica_alfred_dinamica.py --serie "$SERIES" --passo-settimane "$STEP_WEEKS" --inizio-analisi "$ANALYSIS_START"
+      - name: Salva diagnostica (anche con errori)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: alfred-dinamica-${{ matrix.serie }}
+          path: verifica_alfred_dinamica/
+          if-no-files-found: warn
+          retention-days: 30
