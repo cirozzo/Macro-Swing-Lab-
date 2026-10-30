@@ -1,0 +1,26 @@
+name: Macro Swing Lab - Ricognizione disponibilita ALFRED 36 serie
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inventario:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Esegui controllo delle 36 serie (sequenziale)
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: python ricognizione_alfred_36.py
+      - name: Scarica report anche se sono presenti errori
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ricognizione-alfred-36-risultati
+          path: ricognizione_alfred/
+          if-no-files-found: warn
+          retention-days: 30
