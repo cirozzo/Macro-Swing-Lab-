@@ -1,0 +1,30 @@
+name: Macro Swing Lab - Certificazione PIT v2
+on:
+  workflow_dispatch:
+jobs:
+  certifica:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v4
+        with:
+          path: .pit_cache_v2
+          key: pit-v2-${{ github.run_id }}
+          restore-keys: |
+            pit-v2-
+      - name: Controlla dati e vintage
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: python certifica_pit_corretto.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macro-swing-lab-certificazione-pit-v2
+          path: risultati_certificazione_pit_v2/
+          if-no-files-found: warn
