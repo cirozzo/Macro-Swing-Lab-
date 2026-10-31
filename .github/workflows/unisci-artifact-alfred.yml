@@ -1,0 +1,88 @@
+name: Macro Swing Lab - Unisci 36 artifact ALFRED
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'ID numerico della precedente esecuzione Verifica ALFRED dinamica (da URL Actions)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  unisci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Scarica gli artifact della precedente esecuzione
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ inputs.run_id }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$RUN_ID" =~ ^[0-9]+$ ]]; then
+            echo 'Errore: run_id deve essere un numero.' >&2
+            exit 1
+          fi
+          mkdir -p originali
+          gh run download "$RUN_ID" --pattern 'alfred-dinamica-*' --dir originali
+
+      - name: Genera ZIP unico e riepiloghi
+        run: |
+          python - <<'PY'
+          import csv, io, json, pathlib, zipfile
+          root=pathlib.Path('originali')
+          paths=sorted(root.rglob('*_riepilogo.json'))
+          if not paths:
+              raise SystemExit('Nessun riepilogo trovato: controlla ID e nome degli artifact.')
+          serie={p.name.split('_riepilogo.json')[0] for p in paths}
+          if len(serie)!=len(paths):
+              raise SystemExit('Serie duplicate in cartelle diverse: controllo manuale richiesto.')
+          expected=set('ANFCI BAA10Y BAMLH0A0HYM2 CPIAUCSL CPILFESL DCOILWTICO DFEDTARU DFII10 DGS10 DGS2 DGS3MO DTWEXBGS FEDFUNDS GDP ICSA INDPRO JTSJOL M2SL NFCI PAYEMS PCEPI PCEPILFE PPIACO RRPONTSYD RSXFS SOFR STLFSI4 T10Y2Y T10YIE T5YIE UMCSENT UNRATE USEPUINDXD VIXCLS WALCL WRESBAL'.split())
+          missing=sorted(expected-serie)
+          extra=sorted(serie-expected)
+          rows=[]
+          for name in sorted(serie):
+              file=next(root.rglob(f'{name}_riepilogo.json'))
+              try: data=json.loads(file.read_text(encoding='utf-8-sig'))
+              except Exception: data={'errore_lettura':str(file)}
+              rows.append({'serie':name,'riepilogo_json':json.dumps(data,ensure_ascii=False)})
+          # Consolidiamo i CSV esistenti senza usare le sonde come certificazione STRICT.
+          original_csv=sorted(root.rglob('riepilogo_complessivo.csv'))
+          records=[]; fields=[]
+          for p in original_csv:
+              with p.open(encoding='utf-8-sig',newline='') as f:
+                  reader=csv.DictReader(f)
+                  for row in reader:
+                      records.append(row)
+                      for key in row:
+                          if key not in fields:fields.append(key)
+          out=pathlib.Path('output');out.mkdir(exist_ok=True)
+          if records:
+              with (out/'riepilogo_36_serie.csv').open('w',encoding='utf-8-sig',newline='') as f:
+                  w=csv.DictWriter(f,fieldnames=fields);w.writeheader();w.writerows(records)
+          (out/'verifica_completezza.json').write_text(json.dumps({'serie_trovate':len(serie),'serie_attese':36,'mancanti':missing,'non_previste':extra,'serie_presenti':sorted(serie)},indent=2,ensure_ascii=False),encoding='utf-8')
+          (out/'riepiloghi_individuali.json').write_text(json.dumps(rows,indent=2,ensure_ascii=False),encoding='utf-8')
+          with zipfile.ZipFile(out/'macro-swing-lab-alfred-36-completo.zip','w',compression=zipfile.ZIP_DEFLATED,compresslevel=7) as z:
+              for p in sorted(root.rglob('*')):
+                  if p.is_file():z.write(p,'originali/'+p.relative_to(root).as_posix())
+              for p in sorted(out.glob('*')):
+                  if p.name.endswith('.zip'):continue
+                  z.write(p,p.name)
+          print(f'Serie trovate: {len(serie)}/36; mancanti: {missing}; non previste: {extra}')
+          print(f'Creato: {out/"macro-swing-lab-alfred-36-completo.zip"}')
+          if missing:raise SystemExit('ZIP creato, ma non sono presenti tutte le 36 serie: vedi verifica_completezza.json')
+          PY
+
+      - name: Pubblica un solo artifact scaricabile
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macro-swing-lab-alfred-36-completo
+          path: output/
+          if-no-files-found: warn
+          retention-days: 30
