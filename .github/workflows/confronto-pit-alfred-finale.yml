@@ -1,0 +1,94 @@
+name: Macro Swing Lab - Confronto PIT ALFRED giornaliero
+on:
+  workflow_dispatch:
+    inputs:
+      modalita:
+        description: "TEST (30 snapshot per serie) oppure COMPLETO"
+        required: true
+        type: choice
+        options: [TEST, COMPLETO]
+        default: TEST
+permissions:
+  contents: read
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Controlla file di input
+        run: |
+          test -f storico-pit-64-completo.zip
+          test -f macro-swing-lab-associazione-pit.zip
+          test -f confronta_pit_alfred.py
+          python - <<'PY'
+          import zipfile
+          for p in ['storico-pit-64-completo.zip','macro-swing-lab-associazione-pit.zip']:
+              with zipfile.ZipFile(p) as z:
+                  bad=z.testzip()
+                  if bad:raise SystemExit(f'ZIP corrotto: {p}: {bad}')
+          PY
+  confronta:
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        serie: [ANFCI, BAA10Y, BAMLH0A0HYM2, CPIAUCSL, CPILFESL, DCOILWTICO, DFEDTARU, DFII10, DGS10, DGS2, DGS3MO, DTWEXBGS, FEDFUNDS, GDP, ICSA, INDPRO, JTSJOL, M2SL, NFCI, PAYEMS, PCEPI, PCEPILFE, PPIACO, RRPONTSYD, RSXFS, SOFR, STLFSI4, T10Y2Y, T10YIE, T5YIE, UMCSENT, UNRATE, USEPUINDXD, VIXCLS, WALCL, WRESBAL]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Controlla chiave ALFRED
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: test -n "$FRED_API_KEY" || { echo 'Manca secret FRED_API_KEY'; exit 1; }
+      - name: Confronta vintage e valori
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          MODALITA: ${{ inputs.modalita }}
+        run: |
+          LIMIT=0
+          if [ "$MODALITA" = TEST ]; then LIMIT=30; fi
+          python confronta_pit_alfred.py --serie "${{ matrix.serie }}" --limit "$LIMIT"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: confronto-${{ matrix.serie }}
+          path: report_confronto_pit/
+          if-no-files-found: warn
+          retention-days: 30
+  aggrega:
+    needs: [preflight, confronta]
+    if: always() && needs.preflight.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: confronto-*
+          path: raccolta
+          merge-multiple: false
+      - name: Riepilogo e controllo completezza
+        run: |
+          python - <<'PY'
+          import json,pathlib,csv,collections
+          p=pathlib.Path('raccolta');reports=list(p.rglob('*_riepilogo.json'))
+          summary=[];statuses=collections.Counter()
+          for file in reports:
+              d=json.loads(file.read_text());summary.append({'serie':d['serie'],'righe':d['righe'],'pit_daily_conforme':d['stati'].get('PIT_DAILY_CONFORME',0),'altri_stati':d['righe']-d['stati'].get('PIT_DAILY_CONFORME',0),'richieste_api':d['richieste_api'],'completo':d['completo']})
+              statuses.update(d['stati'])
+          summary.sort(key=lambda x:x['serie']);o=pathlib.Path('riepilogo');o.mkdir(exist_ok=True)
+          with (o/'riepilogo_36_serie.csv').open('w',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=['serie','righe','pit_daily_conforme','altri_stati','richieste_api','completo']);w.writeheader();w.writerows(summary)
+          (o/'stati_complessivi.json').write_text(json.dumps({'serie_ottenute':len(reports),'serie_attese':36,'stati':dict(statuses)},indent=2))
+          print('Riepiloghi ottenuti',len(reports),'su 36');print(statuses)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macro-swing-lab-confronto-pit-unico
+          path: |
+            raccolta/
+            riepilogo/
+          retention-days: 30
