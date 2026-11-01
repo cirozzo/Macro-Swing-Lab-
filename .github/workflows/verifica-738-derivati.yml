@@ -1,0 +1,63 @@
+name: Macro Swing Lab - Audit PIT 738 derivati
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'ID esecuzione precedente che contiene macro-swing-lab-confronto-pit-unico'
+        required: true
+        type: string
+      modalita:
+        description: 'TEST (30 righe) o COMPLETO (tutte le 738)'
+        required: true
+        type: choice
+        options: [TEST, COMPLETO]
+        default: TEST
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Recupera il precedente artifact (senza ripetere i 36 controlli)
+        uses: actions/download-artifact@v4
+        with:
+          name: macro-swing-lab-confronto-pit-unico
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: confronto_precedente
+      - name: Prepara archivio di input
+        run: |
+          test -f verifica_derivati_pit.py
+          python - <<'PY'
+          import pathlib,zipfile
+          p=pathlib.Path('confronto_precedente')
+          files=list(p.rglob('*_confronto.csv'))
+          if not files:raise SystemExit('Non trovo i CSV di confronto. Controlla run_id.')
+          with zipfile.ZipFile('macro-swing-lab-confronto-pit-unico.zip','w',zipfile.ZIP_DEFLATED) as z:
+              for f in files:z.write(f,arcname=f.as_posix())
+          print('CSV trovati:',len(files))
+          PY
+      - name: Verifica derivati ufficiali e componenti
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          MODALITA: ${{ inputs.modalita }}
+        run: |
+          test -n "$FRED_API_KEY" || { echo 'Chiave FRED_API_KEY mancante'; exit 1; }
+          LIMIT=0
+          if [ "$MODALITA" = TEST ]; then LIMIT=30; fi
+          python verifica_derivati_pit.py --limit "$LIMIT"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macro-swing-lab-audit-derivati-unico
+          path: |
+            audit_derivati/derivati_738_audit.csv
+            audit_derivati/riepilogo_derivati.json
+          if-no-files-found: warn
+          retention-days: 30
