@@ -1,0 +1,145 @@
+{
+  "input_files": 36,
+  "totale_righe": 37224,
+  "stati": {
+    "VALORE_SNAPSHOT_ASSENTE": 6381,
+    "PIT_DAILY_CONFORME": 30105,
+    "DERIVATO_NON_CERTIFICATO": 738
+  },
+  "inclusi": 30105,
+  "esclusi": 7119,
+  "serie": {
+    "ANFCI": {
+      "VALORE_SNAPSHOT_ASSENTE": 229,
+      "PIT_DAILY_CONFORME": 805
+    },
+    "BAA10Y": {
+      "VALORE_SNAPSHOT_ASSENTE": 369,
+      "PIT_DAILY_CONFORME": 665
+    },
+    "BAMLH0A0HYM2": {
+      "VALORE_SNAPSHOT_ASSENTE": 878,
+      "PIT_DAILY_CONFORME": 156
+    },
+    "CPIAUCSL": {
+      "PIT_DAILY_CONFORME": 1034
+    },
+    "CPILFESL": {
+      "PIT_DAILY_CONFORME": 1034
+    },
+    "DCOILWTICO": {
+      "VALORE_SNAPSHOT_ASSENTE": 222,
+      "PIT_DAILY_CONFORME": 812
+    },
+    "DFEDTARU": {
+      "VALORE_SNAPSHOT_ASSENTE": 378,
+      "PIT_DAILY_CONFORME": 656
+    },
+    "DFII10": {
+      "PIT_DAILY_CONFORME": 1034
+    },
+    "DGS10": {
+      "PIT_DAILY_CONFORME": 1034
+    },
+    "DGS2": {
+      "PIT_DAILY_CONFORME": 1034
+    },
+    "DGS3MO": {
+      "PIT_DAILY_CONFORME": 1034
+    },
+    "DTWEXBGS": {
+      "VALORE_SNAPSHOT_ASSENTE": 631,
+      "PIT_DAILY_CONFORME": 403
+    },
+    "FEDFUNDS": {
+      "PIT_DAILY_CONFORME": 1034
+    },
+    "GDP": {
+      "PIT_DAILY_CONFORME": 1034
+    },
+    "ICSA": {
+      "VALORE_SNAPSHOT_ASSENTE": 125,
+      "PIT_DAILY_CONFORME": 909
+    },
+    "INDPRO": {
+      "PIT_DAILY_CONFORME": 1034
+    },
+    "JTSJOL": {
+      "VALORE_SNAPSHOT_ASSENTE": 188,
+      "PIT_DAILY_CONFORME": 846
+    },
+    "M2SL": {
+      "PIT_DAILY_CONFORME": 1034
+    },
+    "NFCI": {
+      "VALORE_SNAPSHOT_ASSENTE": 229,
+      "PIT_DAILY_CONFORME": 805
+    },
+    "PAYEMS": {
+      "PIT_DAILY_CONFORME": 1034
+    },
+    "PCEPI": {
+      "PIT_DAILY_CONFORME": 1034
+    },
+    "PCEPILFE": {
+      "PIT_DAILY_CONFORME": 1034
+    },
+    "PPIACO": {
+      "PIT_DAILY_CONFORME": 1034
+    },
+    "RRPONTSYD": {
+      "VALORE_SNAPSHOT_ASSENTE": 482,
+      "PIT_DAILY_CONFORME": 552
+    },
+    "RSXFS": {
+      "PIT_DAILY_CONFORME": 1034
+    },
+    "SOFR": {
+      "VALORE_SNAPSHOT_ASSENTE": 639,
+      "PIT_DAILY_CONFORME": 395
+    },
+    "STLFSI4": {
+      "VALORE_SNAPSHOT_ASSENTE": 827,
+      "PIT_DAILY_CONFORME": 207
+    },
+    "T10Y2Y": {
+      "VALORE_SNAPSHOT_ASSENTE": 369,
+      "PIT_DAILY_CONFORME": 665
+    },
+    "T10YIE": {
+      "DERIVATO_NON_CERTIFICATO": 369,
+      "PIT_DAILY_CONFORME": 665
+    },
+    "T5YIE": {
+      "DERIVATO_NON_CERTIFICATO": 369,
+      "PIT_DAILY_CONFORME": 665
+    },
+    "UMCSENT": {
+      "PIT_DAILY_CONFORME": 1034
+    },
+    "UNRATE": {
+      "PIT_DAILY_CONFORME": 1034
+    },
+    "USEPUINDXD": {
+      "VALORE_SNAPSHOT_ASSENTE": 377,
+      "PIT_DAILY_CONFORME": 657
+    },
+    "VIXCLS": {
+      "VALORE_SNAPSHOT_ASSENTE": 203,
+      "PIT_DAILY_CONFORME": 831
+    },
+    "WALCL": {
+      "VALORE_SNAPSHOT_ASSENTE": 235,
+      "PIT_DAILY_CONFORME": 799
+    },
+    "WRESBAL": {
+      "PIT_DAILY_CONFORME": 1034
+    }
+  },
+  "avvertenze": [
+    "PIT giornaliero non equivale a verifica del timestamp intraday",
+    "Derivati non conformi esclusi",
+    "Dati mancanti non imputati",
+    "Non certifica regimi macro né prezzi ETF né assenza di lookahead nel backtest"
+  ]
+}
