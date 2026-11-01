@@ -1,0 +1,71 @@
+name: Macro Swing Lab - Certificazione PIT 738 componenti
+on:
+  workflow_dispatch:
+    inputs:
+      run_id_confronto:
+        description: 'Run ID del workflow confronto PIT'
+        required: true
+        type: string
+      run_id_audit:
+        description: 'Run ID del workflow audit 738 derivati'
+        required: true
+        type: string
+      modalita:
+        description: 'TEST oppure COMPLETO'
+        required: true
+        type: choice
+        options: [TEST, COMPLETO]
+        default: TEST
+permissions:
+  contents: read
+  actions: read
+jobs:
+  certifica:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Recupera archivio confronto
+        uses: actions/download-artifact@v4
+        with:
+          name: macro-swing-lab-confronto-pit-unico
+          run-id: ${{ inputs.run_id_confronto }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: precedente_confronto
+      - name: Recupera archivio audit
+        uses: actions/download-artifact@v4
+        with:
+          name: macro-swing-lab-audit-derivati-unico
+          run-id: ${{ inputs.run_id_audit }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: precedente_audit
+      - name: Prepara ZIP input
+        run: |
+          python - <<'PY'
+          import pathlib,zipfile
+          for folder,output,pattern in [('precedente_confronto','macro-swing-lab-confronto-pit-unico.zip','*_confronto.csv'),('precedente_audit','macro-swing-lab-audit-derivati-unico.zip','derivati_738_audit.csv')]:
+              root=pathlib.Path(folder)
+              files=list(root.rglob(pattern))
+              if not files:raise SystemExit('File mancante: '+pattern)
+              with zipfile.ZipFile(output,'w',zipfile.ZIP_DEFLATED) as z:
+                  for p in files:z.write(p,p.name)
+          PY
+      - name: Certifica componenti con evidenze ALFRED
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          MODALITA: ${{ inputs.modalita }}
+        run: |
+          test -n "$FRED_API_KEY" || { echo 'Secret FRED_API_KEY mancante'; exit 1; }
+          LIMIT=0
+          if [ "$MODALITA" = TEST ]; then LIMIT=30; fi
+          python certifica_componenti_738.py --limit "$LIMIT"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macro-swing-lab-certificazione-738-unico
+          path: certificazione_componenti/
+          if-no-files-found: warn
+          retention-days: 30
