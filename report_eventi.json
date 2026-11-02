@@ -1,0 +1,8 @@
+{
+  "macro_rows": 30105,
+  "events_new_observation_with_prior": 18790,
+  "etf_rows": 30935,
+  "joined_rows": 562314,
+  "groups": 2850,
+  "note": "Esplorativo: variazioni tra snapshot settimanali, NON sorprese macro né reazioni intraday. Prezzi ETF ereditati da v5.2, non rivalidati. Finestre sovrapposte; statistiche descrittive non inferenziali."
+}
