@@ -1,0 +1,51 @@
+name: Macro Swing Lab - COT PIT ripristino verificato
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Installa dipendenze
+        run: python -m pip install 'pandas>=2.2,<3' 'numpy>=1.26,<3' 'requests>=2.31,<3'
+      - name: Preflight input versionato
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f cot_pit_etf.py || { echo 'Manca cot_pit_etf.py nella root'; exit 1; }
+          test -s etf-pit-52.zip || { echo 'Manca etf-pit-52.zip nella root; caricare archivio ETF 52 validato'; exit 1; }
+          python - <<'PY'
+          import zipfile, pandas as pd
+          p='etf-pit-52.zip'
+          with zipfile.ZipFile(p) as z:
+              bad=z.testzip()
+              if bad: raise SystemExit(f'ZIP corrotto: {bad}')
+              if 'osservazioni_pit_52.csv' not in z.namelist():
+                  raise SystemExit('Manca osservazioni_pit_52.csv nella root ZIP')
+              with z.open('osservazioni_pit_52.csv') as f:
+                  d=pd.read_csv(f)
+          required={'asset','data_segnale','vintage_asof','data_ingresso','data_uscita','sedute','rendimento','excess_return'}
+          if d.empty or not required<=set(d.columns): raise SystemExit('Input ETF vuoto o colonne mancanti')
+          for c in ['data_segnale','vintage_asof','data_ingresso','data_uscita']:
+              d[c]=pd.to_datetime(d[c],errors='raise')
+          if not ((d.vintage_asof<d.data_segnale)&(d.data_segnale<d.data_ingresso)&(d.data_ingresso<=d.data_uscita)).all():
+              raise SystemExit('Vincolo temporale ETF violato')
+          if d.duplicated(['asset','data_segnale','sedute']).any():raise SystemExit('Duplicati ETF')
+          print('Preflight OK: righe ETF',len(d),'asset',d.asset.nunique())
+          PY
+      - name: Prepara feature CFTC COT
+        run: python cot_pit_etf.py --etf-zip etf-pit-52.zip --out cot_results
+      - name: Salva output e diagnostica
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cot-pit-features
+          path: cot_results/
+          if-no-files-found: warn
+          retention-days: 30
