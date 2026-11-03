@@ -14,7 +14,7 @@ jobs:
           python-version: '3.11'
       - run: pip install pandas numpy requests
       - name: Download and prepare CFTC COT data
-        run: python scripts/cot_pit_etf.py --etf-zip etf-pit-52.zip --out cot_results
+        run: python cot_pit_etf.py --etf-zip etf-pit-52.zip --out cot_results
       - uses: actions/upload-artifact@v4
         if: always()
         with:
