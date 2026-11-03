@@ -1,0 +1,64 @@
+name: Macro Swing Lab - COT PIT v2 TFF e DISAGG
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cot-v2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Installa librerie
+        run: python -m pip install 'pandas>=2.2,<3' 'numpy>=1.26,<3' 'requests>=2.31,<3'
+      - name: Verifica input e nomi nella root
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s etf-pit-52.zip || { echo 'ERRORE: manca etf-pit-52.zip nella root'; exit 1; }
+          test -s cot_pit_etf.py || { echo 'ERRORE: manca cot_pit_etf.py nella root'; exit 1; }
+          python -m py_compile cot_pit_etf.py
+          python - <<'PY'
+          import zipfile, pandas as pd
+          with zipfile.ZipFile('etf-pit-52.zip') as z:
+              assert z.testzip() is None, 'ZIP ETF danneggiato'
+              matches=[n for n in z.namelist() if n.endswith('osservazioni_pit_52.csv')]
+              assert len(matches)==1, 'Serve un solo osservazioni_pit_52.csv'
+              with z.open(matches[0]) as f: df=pd.read_csv(f)
+          assert len(df)>0
+          print('ETF caricati:',len(df),'righe,',df.asset.nunique(),'asset')
+          PY
+      - name: Scarica e correggi feature TFF e DISAGG
+        run: |
+          set -euo pipefail
+          python cot_pit_etf.py --etf-zip etf-pit-52.zip --out cot_results
+      - name: Controllo finale obbligatorio
+        run: |
+          python - <<'PY'
+          import json, pandas as pd
+          r=json.load(open('cot_results/report.json'))
+          assert r['status']=='FEATURES_READY_NOT_BACKTESTED',r
+          for typ in ('TFF','DISAGG'):
+              assert r[typ+'_feature_rows']>0,(typ,r)
+              assert r[typ+'_z_valid']>0,(typ,r)
+              assert r[typ+'_percentile_valid']>0,(typ,r)
+          c=pd.read_csv('cot_results/cot_features_pit_proxy.csv')
+          assert set(c.kind)=={'TFF','DISAGG'}
+          assert c.strict_pit_eligible.eq(False).all(), 'Strict PIT cannot be auto-certified'
+          print('COT v2 OK:',len(c),'righe')
+          print('TFF:',r['TFF_feature_rows'],'DISAGG:',r['DISAGG_feature_rows'])
+          PY
+      - name: Conserva dati e report (anche in caso di errore)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cot-pit-features-v2
+          path: cot_results/
+          if-no-files-found: warn
+          retention-days: 90
