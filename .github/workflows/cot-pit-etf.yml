@@ -1,0 +1,22 @@
+name: Macro Swing Lab - COT PIT feature extraction
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Download and prepare CFTC COT data
+        run: python scripts/cot_pit_etf.py --etf-zip etf-pit-52.zip --out cot_results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cot-pit-features
+          path: cot_results/
