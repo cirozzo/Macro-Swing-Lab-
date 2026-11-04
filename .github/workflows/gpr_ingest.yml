@@ -1,0 +1,52 @@
+name: Macro Swing Lab - GPR ingest
+on:
+  workflow_dispatch:
+    inputs:
+      latest_only:
+        description: 'Solo snapshot attuale (true/false)'
+        required: false
+        default: 'false'
+      max_vintages:
+        description: '0 = tutte le vintage disponibili'
+        required: false
+        default: '0'
+  schedule:
+    - cron: '30 12 * * 2'
+permissions:
+  contents: read
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: python -m pip install --disable-pip-version-check pandas numpy requests xlrd openpyxl
+      - name: Download and build PIT panel
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LATEST_ONLY: ${{ inputs.latest_only || 'false' }}
+          MAX_VINTAGES: ${{ inputs.max_vintages || '0' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARGS=(--output gpr_output --max-vintages "$MAX_VINTAGES")
+          if [ "$LATEST_ONLY" = 'true' ]; then ARGS+=(--latest-only); fi
+          if [ -f SIGNALS_FEATURES_ONLY_NO_TARGETS.csv ]; then
+            ARGS+=(--signals SIGNALS_FEATURES_ONLY_NO_TARGETS.csv)
+          elif [ -f PANEL_MACRO_ESISTENTE_15475.csv ]; then
+            ARGS+=(--signals PANEL_MACRO_ESISTENTE_15475.csv)
+          else
+            echo 'AVVISO: pannello ETF assente; verranno scaricate le vintage GPR senza join'
+          fi
+          python gpr_pipeline.py "${ARGS[@]}"
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macro-swing-lab-gpr
+          path: gpr_output/
+          retention-days: 30
