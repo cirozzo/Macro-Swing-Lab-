@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       run_id:
-        description: 'ID numerico della run che contiene l’artifact da 1,26 GB'
+        description: "ID della run che contiene l'artifact originale"
         required: true
         type: string
       artifact_name:
-        description: 'Nome ESATTO dell’artifact (come appare nella sezione Artifacts)'
+        description: "Nome esatto dell'artifact da analizzare"
         required: true
         type: string
 
@@ -20,16 +20,39 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     timeout-minutes: 120
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Verifica risorse disponibili
         run: |
-          df -h .
+          set -euo pipefail
+          echo "Cartella corrente:"
+          pwd
+
+          echo "File nella cartella principale:"
+          ls -lah
+
+          echo "Versione Python:"
           python --version
 
-      - name: Scarica direttamente su GitHub l'artifact originale
+          echo "Spazio disponibile:"
+          df -h .
+
+      - name: Verifica presenza script Python
+        run: |
+          set -euo pipefail
+
+          if [ ! -f "audit_artifact.py" ]; then
+            echo "::error::File audit_artifact.py non trovato nella cartella principale del repository."
+            echo "Inserisci audit_artifact.py nella root del branch utilizzato."
+            exit 1
+          fi
+
+          echo "Script Python trovato correttamente."
+
+      - name: Scarica artifact originale
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ inputs.run_id }}
@@ -37,20 +60,40 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
+
           mkdir -p input_artifact
-          gh run download "$RUN_ID" --repo "$GH_REPO" --name "$ARTIFACT_NAME" --dir input_artifact
-          echo 'File ricevuti:'
-          find input_artifact -type f -printf '%s %p\n' | sort -nr | head -25
+
+          gh run download "$RUN_ID" \
+            --repo "$GH_REPO" \
+            --name "$ARTIFACT_NAME" \
+            --dir input_artifact
+
+          echo "Download completato."
+
+          echo "Dimensione dati:"
+          du -sh input_artifact
+
+          echo "Spazio residuo:"
           df -h .
 
-      - name: Analizza in streaming e prepara report piccolo
+      - name: Analizza dati e genera report compatto
         run: |
           set -euo pipefail
-      python audit_artifact.py \
-  --root input_artifact \
-  --output output_audit \
-  --samples 12
-      - name: Pubblica solo il report compatto
+
+          python audit_artifact.py \
+            --root input_artifact \
+            --output output_audit \
+            --samples 12
+
+          echo "Analisi completata."
+
+          echo "Dimensione report:"
+          du -sh output_audit
+
+          echo "File generati:"
+          ls -lah output_audit
+
+      - name: Pubblica report compatto
         if: always() && hashFiles('output_audit/inventario.csv') != ''
         uses: actions/upload-artifact@v4
         with:
