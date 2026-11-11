@@ -46,9 +46,10 @@ jobs:
       - name: Analizza in streaming e prepara report piccolo
         run: |
           set -euo pipefail
-          python scripts/audit_artifact.py --root input_artifact --output output_audit --samples 12
-          du -sh output_audit
-
+      python audit_artifact.py \
+  --root input_artifact \
+  --output output_audit \
+  --samples 12
       - name: Pubblica solo il report compatto
         if: always() && hashFiles('output_audit/inventario.csv') != ''
         uses: actions/upload-artifact@v4
