@@ -1,0 +1,57 @@
+name: Macro Swing Lab - GPR PIT leggero
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Run ID dell artifact originale da 1,26 GB'
+        required: true
+        type: string
+      artifact_name:
+        description: 'Nome esatto dell artifact originale'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  gpr-pit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Controllo script PRIMA del download
+        run: |
+          test -f gpr_pit_compatta.py || { echo '::error::Manca gpr_pit_compatta.py nella ROOT di main'; exit 1; }
+          python -m py_compile gpr_pit_compatta.py
+      - name: Installa librerie
+        run: |
+          python -m pip install --disable-pip-version-check 'pandas>=2.2,<3' 'numpy>=1.26,<3'
+      - name: Scarica artifact sul runner GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: ${{ inputs.artifact_name }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          mkdir -p input_artifact
+          gh run download "$RUN_ID" --repo "$GH_REPO" --name "$ARTIFACT_NAME" --dir input_artifact
+          du -sh input_artifact
+      - name: Elabora GPR senza caricare tutto in memoria
+        run: |
+          set -euo pipefail
+          python gpr_pit_compatta.py --root input_artifact --output output_gpr
+          du -sh output_gpr
+          ls -lh output_gpr
+      - name: Pubblica SOLTANTO file leggeri
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macro-swing-lab-gpr-pit-leggero
+          path: output_gpr/
+          retention-days: 30
+          if-no-files-found: warn
