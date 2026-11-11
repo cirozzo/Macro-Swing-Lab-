@@ -1,0 +1,59 @@
+name: Macro Swing Lab - Audit artifact pesante
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'ID numerico della run che contiene l’artifact da 1,26 GB'
+        required: true
+        type: string
+      artifact_name:
+        description: 'Nome ESATTO dell’artifact (come appare nella sezione Artifacts)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verifica risorse disponibili
+        run: |
+          df -h .
+          python --version
+
+      - name: Scarica direttamente su GitHub l'artifact originale
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: ${{ inputs.artifact_name }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          mkdir -p input_artifact
+          gh run download "$RUN_ID" --repo "$GH_REPO" --name "$ARTIFACT_NAME" --dir input_artifact
+          echo 'File ricevuti:'
+          find input_artifact -type f -printf '%s %p\n' | sort -nr | head -25
+          df -h .
+
+      - name: Analizza in streaming e prepara report piccolo
+        run: |
+          set -euo pipefail
+          python scripts/audit_artifact.py --root input_artifact --output output_audit --samples 12
+          du -sh output_audit
+
+      - name: Pubblica solo il report compatto
+        if: always() && hashFiles('output_audit/inventario.csv') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: macro-swing-lab-audit-compatto
+          path: output_audit/
+          retention-days: 30
+          if-no-files-found: error
