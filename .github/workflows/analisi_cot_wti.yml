@@ -1,0 +1,41 @@
+name: Macro Swing Lab - Analisi COT WTI
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analisi-cot-wti:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Scarica repository
+        uses: actions/checkout@v4
+
+      - name: Configura Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Installa dipendenze
+        run: python -m pip install --upgrade pip pandas numpy requests
+
+      - name: Verifica file nella root
+        shell: bash
+        run: |
+          test -f 'analisi_cot_wti.py' || { echo 'Manca analisi_cot_wti.py nella root'; exit 1; }
+          test -f 'TVC_USOIL, 1D.zip' || { echo 'Manca TVC_USOIL, 1D.zip nella root'; exit 1; }
+
+      - name: Esegui analisi COT
+        run: python analisi_cot_wti.py
+
+      - name: Carica risultati
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macro-swing-lab-cot-wti-risultati
+          path: risultati/
+          if-no-files-found: warn
+          retention-days: 30
