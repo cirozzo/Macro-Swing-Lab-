@@ -1,0 +1,28 @@
+name: Macro Swing Lab - Certifica COT WTI 067651
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  certifica:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Installa dipendenze
+        run: python -m pip install --upgrade pandas numpy requests
+      - name: Verifica script
+        run: test -f certifica_cot_wti.py
+      - name: Ricostruisci e controlla serie
+        run: python certifica_cot_wti.py
+      - name: Carica audit anche se il controllo fallisce
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cot-wti-067651-audit
+          path: risultati_cot_certificazione/
+          if-no-files-found: warn
+          retention-days: 30
