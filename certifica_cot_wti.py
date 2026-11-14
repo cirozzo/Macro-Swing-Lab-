@@ -1,108 +1,158 @@
-"""Ciclo 18: ricostruzione rigorosa COT futures-only WTI NYMEX (067651).
-Eseguire dalla root del repository: python certifica_cot_wti.py
+"""Macro Swing Lab: audit strutturale CFTC disaggregated FUTURES ONLY, WTI 067651.
+Intervallo richiesto 2010-2026; 2009 escluso e non certificato.
+NON certifica le date effettive di pubblicazione (PIT).
 """
-import io, json, re, zipfile
-from pathlib import Path
-import requests
-import numpy as np
+import io
+import json
+import pathlib
+import sys
+import time
+import zipfile
+from datetime import datetime
+
 import pandas as pd
+import requests
 
-ROOT=Path(__file__).resolve().parent
-OUT=ROOT/'risultati_cot_certificazione';OUT.mkdir(exist_ok=True)
-YEARS=range(2009,2027)
-CODE='067651'
+ROOT = pathlib.Path(__file__).resolve().parent
+OUT = ROOT / 'audit_cot_wti'
+OUT.mkdir(exist_ok=True)
+CODE = '067651'
+START, END = 2010, 2026
+FIELDS = ['M_Money_Positions_Long_All', 'M_Money_Positions_Short_All', 'Open_Interest_All']
 
-def norm(x): return re.sub(r'[^a-z0-9]','',str(x).lower())
-def field(df,*aliases):
-    lookup={norm(c):c for c in df.columns}
-    for a in aliases:
-        if norm(a) in lookup:return lookup[norm(a)]
-    raise KeyError(f'Colonna assente {aliases}. Disponibili: {list(df.columns)}')
 
-def download(year):
-    urls=[f'https://www.cftc.gov/files/dea/history/fut_disagg_txt_{year}.zip',f'https://www.cftc.gov/files/dea/history/fut_disagg_txt_hist_{year}.zip']
-    errors=[]
+def download_year(year, session):
+    urls = [
+        f'https://www.cftc.gov/files/dea/history/fut_disagg_txt_{year}.zip',
+        f'https://www.cftc.gov/files/dea/history/fut_disagg_txt_hist_{year}.zip',
+    ]
+    errors = []
     for url in urls:
-        try:
-            r=requests.get(url,timeout=65,headers={'User-Agent':'Mozilla/5.0 MacroSwingLabResearch/1.0'})
-            r.raise_for_status()
-            with zipfile.ZipFile(io.BytesIO(r.content)) as z:
-                members=[m for m in z.namelist() if m.lower().endswith(('.txt','.csv')) and not m.startswith('__')]
-                if not members:raise ValueError('ZIP senza CSV/TXT')
-                member=max(members,key=lambda x:z.getinfo(x).file_size)
-                frame=pd.read_csv(z.open(member),low_memory=False,dtype={'CFTC_Contract_Market_Code':str})
-            return frame,url
-        except Exception as e:errors.append(f'{url}: {e}')
-    raise RuntimeError('; '.join(errors))
+        for attempt in range(3):
+            try:
+                response = session.get(url, timeout=(20, 90))
+                response.raise_for_status()
+                with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
+                    names = [n for n in archive.namelist()
+                             if n.lower().endswith(('.txt', '.csv')) and not n.startswith('__MACOSX/')]
+                    if len(names) != 1:
+                        raise ValueError(f'Numero file tabellari inatteso: {names}')
+                    with archive.open(names[0]) as source:
+                        frame = pd.read_csv(source, low_memory=False, dtype=str, encoding='utf-8-sig')
+                frame.columns = frame.columns.astype(str).str.strip()
+                if frame.columns.duplicated().any():
+                    raise ValueError('Intestazioni duplicate nel file CFTC')
+                return frame, url
+            except (requests.RequestException, zipfile.BadZipFile, ValueError, UnicodeError, pd.errors.ParserError) as exc:
+                errors.append(f'{url} tentativo {attempt + 1}: {type(exc).__name__}: {str(exc)[:180]}')
+                if attempt < 2:
+                    time.sleep(attempt + 1)
+    raise RuntimeError(' | '.join(errors))
+
+
+def parse_report_dates(frame):
+    specs = [
+        ('Report_Date_as_YYYY-MM-DD', ['%Y-%m-%d', '%Y/%m/%d']),
+        ('Report_Date_as_YYYY_MM_DD', ['%Y_%m_%d', '%Y-%m-%d']),
+        ('Report_Date_as_MM_DD_YYYY', ['%m/%d/%Y', '%m-%d-%Y', '%m_%d_%Y']),
+        ('As_of_Date_In_Form_YYMMDD', ['%y%m%d']),
+    ]
+    attempted = []
+    for column, formats in specs:
+        if column not in frame.columns:
+            continue
+        raw = frame[column].astype('string').str.strip()
+        for fmt in formats:
+            parsed = pd.to_datetime(raw, format=fmt, errors='coerce')
+            if parsed.notna().all():
+                return parsed.dt.normalize(), column, fmt
+        attempted.append(column)
+    raise ValueError(f'Colonne data presenti ma non interamente interpretabili: {attempted}; '
+                     f'colonne disponibili: {list(frame.columns)}')
+
 
 def main():
-    frames=[]; logs=[]
-    for year in YEARS:
+    session = requests.Session()
+    session.headers.update({'User-Agent': 'MacroSwingLab-COT-audit/3.0 (academic historical research)'})
+    audit, frames = [], []
+    for year in range(START, END + 1):
+        row = {'year': year, 'status': 'ERROR', 'rows': 0, 'url': '', 'date_column': '',
+               'date_format': '', 'market_names': '', 'error': ''}
         try:
-            raw,url=download(year)
-            code=field(raw,'CFTC_Contract_Market_Code')
-            market=field(raw,'Market_and_Exchange_Names')
-            date=field(raw,'Report_Date_as_YYYY-MM-DD','Report_Date_as_YYYY_MM_DD','Report_Date')
-            longs=field(raw,'M_Money_Positions_Long_All')
-            shorts=field(raw,'M_Money_Positions_Short_All')
-            oi=field(raw,'Open_Interest_All')
-            selected=raw.loc[raw[code].astype(str).str.strip().str.zfill(6).eq(CODE)].copy()
-            markets=selected[market].astype(str).value_counts().to_dict()
-            if selected.empty:raise ValueError('Nessuna riga con codice 067651')
-            # Safety: selected rows must refer to NYMEX crude; code alone is necessary, not sufficient.
-            if not selected[market].astype(str).str.contains('CRUDE OIL|WTI',case=False,regex=True).all():
-                raise ValueError('Mercati imprevisti per codice 067651: '+str(markets))
-            part=pd.DataFrame({'report_date':pd.to_datetime(selected[date],errors='coerce'),
-                               'market':selected[market].astype(str),'code':selected[code].astype(str),
-                               'mm_long':pd.to_numeric(selected[longs],errors='coerce'),
-                               'mm_short':pd.to_numeric(selected[shorts],errors='coerce'),
-                               'open_interest':pd.to_numeric(selected[oi],errors='coerce'),
-                               'source_year':year,'source_url':url})
-            part['report_date']=part['report_date'].dt.normalize()
-            frames.append(part)
-            logs.append({'year':year,'status':'ok','rows':len(part),'markets':str(markets),'url':url})
-            print(year,'OK',len(part),markets,flush=True)
-        except Exception as e:
-            logs.append({'year':year,'status':'ERROR','rows':0,'error':str(e)})
-            print(year,'ERROR',str(e),flush=True)
-    pd.DataFrame(logs).to_csv(OUT/'audit_download.csv',index=False)
-    if not frames:raise RuntimeError('Nessun dato CFTC disponibile')
-    data=pd.concat(frames,ignore_index=True).sort_values('report_date')
-    data.to_csv(OUT/'cot_wti_raw_codice_067651.csv',index=False)
-    duplicates=data[data.duplicated('report_date',keep=False)]
-    duplicates.to_csv(OUT/'date_duplicate_da_verificare.csv',index=False)
-    invalid=data[data[['report_date','mm_long','mm_short','open_interest']].isna().any(axis=1) | (data.open_interest<=0)]
-    invalid.to_csv(OUT/'righe_invalide.csv',index=False)
-    # Never silently drop duplicate dates: the prior bug was exactly a blind drop_duplicates.
-    if not duplicates.empty or not invalid.empty:
-        raise RuntimeError(f'Audit bloccante: {len(duplicates)} righe con date duplicate; {len(invalid)} invalide. Vedere CSV.')
-    data['net_mm']=data.mm_long-data.mm_short
-    data['net_pct_oi']=data.net_mm/data.open_interest
-    data['delta_4w']=data.net_pct_oi-data.net_pct_oi.shift(4)
-    data['gap_days']=data.report_date.diff().dt.days
-    data['weekly_jump_pct_points']=data.net_pct_oi.diff()*100
-    data['usable_from_assumed']=data.report_date+pd.Timedelta(days=6)
-    data.to_csv(OUT/'cot_wti_067651_futures_only.csv',index=False)
-    gaps=data[data.gap_days.gt(8) | data.gap_days.lt(6)]
-    jumps=data[data.weekly_jump_pct_points.abs().gt(5)]
-    gaps.to_csv(OUT/'settimane_mancanti_o_irregolari.csv',index=False)
-    jumps.to_csv(OUT/'salti_superiori_5pp.csv',index=False)
-    old=ROOT/'cot_wti_settimanale.csv'
-    if old.exists():
-        prev=pd.read_csv(old,parse_dates=['report_date'])
-        comp=data.merge(prev[['report_date','net_mm','net_pct_oi']],on='report_date',how='outer',suffixes=('_new','_old'),indicator=True)
-        comp['delta_net_mm']=comp.net_mm_new-comp.net_mm_old
-        comp['delta_net_pct_oi']=comp.net_pct_oi_new-comp.net_pct_oi_old
-        comp.to_csv(OUT/'confronto_serie_vecchia_nuova.csv',index=False)
-    audit={'code':CODE,'dataset':'CFTC disaggregated futures-only','years_requested':list(YEARS),
-           'years_downloaded':int(sum(x['status']=='ok' for x in logs)),
-           'records':len(data),'first':str(data.report_date.min()),'last':str(data.report_date.max()),
-           'duplicates':len(duplicates),'invalid':len(invalid),'irregular_gaps':len(gaps),'jumps_over_5pp':len(jumps),
-           'PIT_status':'NON CERTIFICATO: usable_from_assumed=martedi+6 giorni; verificare eccezioni CFTC',
-           'note':'Non un backtest. I salti anomali sono segnalati, non rimossi.'}
-    (OUT/'audit.json').write_text(json.dumps(audit,indent=2,ensure_ascii=False))
-    print(json.dumps(audit,indent=2,ensure_ascii=False))
-    if any(x['status']=='ERROR' for x in logs):
-        raise RuntimeError('Alcuni anni non scaricati: audit parziale, non certificabile')
+            frame, url = download_year(year, session)
+            row['url'] = url
+            required = ['CFTC_Contract_Market_Code', *FIELDS]
+            missing = [c for c in required if c not in frame.columns]
+            if missing:
+                raise ValueError(f'Campi obbligatori mancanti: {missing}')
+            code = (frame['CFTC_Contract_Market_Code'].astype('string').str.strip()
+                    .str.replace(r'\.0$', '', regex=True).str.zfill(6))
+            frame = frame.loc[code.eq(CODE).fillna(False)].copy()
+            if frame.empty:
+                raise ValueError(f'Codice CFTC {CODE} assente')
+            if 'FutOnly_or_Combined' in frame.columns:
+                kinds = frame['FutOnly_or_Combined'].astype('string').str.strip().str.lower().unique().tolist()
+                if not all('fut' in str(x) and 'comb' not in str(x) for x in kinds):
+                    raise ValueError(f'Tipologia non futures-only: {kinds}')
+            # La provenienza da fut_disagg_txt_ e il controllo schema sono obbligatori.
+            dates, date_column, date_format = parse_report_dates(frame)
+            frame['report_date'] = dates
+            for field in FIELDS:
+                frame[field] = pd.to_numeric(frame[field].str.replace(',', '', regex=False), errors='coerce')
+            if frame[FIELDS].isna().any().any():
+                raise ValueError('Posizioni o open interest non numerici')
+            if (frame[FIELDS] < 0).any().any() or (frame[FIELDS[2]] <= 0).any():
+                raise ValueError('Valori negativi o open interest nullo')
+            if not frame.report_date.dt.year.eq(year).all():
+                raise ValueError('Date report fuori anno archivio')
+            if frame.report_date.duplicated().any():
+                raise ValueError('Date duplicate per codice nello stesso anno: NON eliminate')
+            frame['market'] = (frame['Market_and_Exchange_Names'].astype('string').str.strip()
+                               if 'Market_and_Exchange_Names' in frame.columns else '')
+            frame['source_year'], frame['source_url'] = year, url
+            frames.append(frame[['report_date', 'market', *FIELDS, 'source_year', 'source_url']])
+            row.update(status='OK', rows=len(frame), date_column=date_column,
+                       date_format=date_format, market_names=' | '.join(frame.market.dropna().unique()))
+        except Exception as exc:
+            row['error'] = f'{type(exc).__name__}: {exc}'
+        audit.append(row)
+        pd.DataFrame(audit).to_csv(OUT / 'audit_download.csv', index=False)
+        print(f"{year}: {row['status']} {row['rows']} righe {row['error'][:200]}", flush=True)
 
-if __name__=='__main__':main()
+    missing = [row['year'] for row in audit if row['status'] != 'OK']
+    summary = {'contract_code': CODE, 'source': 'CFTC disaggregated futures-only yearly archives',
+               'required_years': [START, END], 'missing_years': missing,
+               'structural_status': 'INCOMPLETE',
+               'pit_status': 'NOT CERTIFIED - real release dates not checked',
+               'excluded_2009': '2009 intentionally outside required interval; NOT certified',
+               'checked_at_utc': datetime.utcnow().isoformat() + 'Z'}
+    if frames:
+        data = pd.concat(frames, ignore_index=True).sort_values('report_date').reset_index(drop=True)
+        data['net_mm'] = data[FIELDS[0]] - data[FIELDS[1]]
+        data['net_pct_oi'] = data.net_mm / data[FIELDS[2]]
+        data['delta_4w'] = data.net_pct_oi.diff(4)
+        data['gap_days'] = data.report_date.diff().dt.days
+        duplicates = data.report_date.duplicated(keep=False)
+        irregular = data.gap_days.notna() & data.gap_days.ne(7)
+        spikes = data.net_pct_oi.diff().abs().gt(.05)
+        data.to_csv(OUT / 'cot_wti_067651_futures_only.csv', index=False)
+        data.loc[duplicates].to_csv(OUT / 'date_duplicate.csv', index=False)
+        data.loc[irregular].to_csv(OUT / 'settimane_irregolari.csv', index=False)
+        data.loc[spikes].to_csv(OUT / 'salti_superiori_5pp.csv', index=False)
+        summary.update(records=len(data), first=str(data.report_date.min().date()),
+                       last=str(data.report_date.max().date()),
+                       duplicate_rows=int(duplicates.sum()), irregular_gaps=int(irregular.sum()),
+                       jumps_over_5pp=int(spikes.sum()),
+                       market_names=sorted(data.market.dropna().unique().tolist()))
+        if not missing and not duplicates.any() and not irregular.any() and data.net_pct_oi.notna().all():
+            summary['structural_status'] = 'PASSED - not PIT certified'
+        elif not missing:
+            summary['structural_status'] = 'FAILED - review duplicate/irregular/invalid observations'
+    (OUT / 'audit.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+    print(json.dumps(summary, ensure_ascii=False, indent=2))
+    if summary['structural_status'] != 'PASSED - not PIT certified':
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()
