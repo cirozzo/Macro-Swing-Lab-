@@ -1,0 +1,26 @@
+name: Macro Swing Lab - Audit COT WTI unificato
+"on":
+  workflow_dispatch:
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Installa librerie
+        run: python -m pip install 'pandas==2.2.3' 'requests==2.32.3'
+      - name: Controllo sintassi
+        run: python -m py_compile certificazione_integrale_cot_wti.py
+      - name: Audit completo dati e PIT
+        run: python certificazione_integrale_cot_wti.py
+      - name: Pubblica sempre audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cot-wti-audit-unificato
+          path: certificazione_cot_wti/
+          if-no-files-found: warn
+          retention-days: 30
